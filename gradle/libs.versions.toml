@@ -18,6 +18,9 @@ room = "2.6.1"
 navigationCompose = "2.8.5"
 securityCrypto = "1.1.0-alpha06"
 ksp = "2.0.21-1.0.27"
+mockk = "1.13.12"
+kotlinxCoroutinesTest = "1.9.0"
+turbine = "1.1.0"
 
 [libraries]
 # AndroidX
@@ -64,6 +67,9 @@ security-crypto = { group = "androidx.security", name = "security-crypto", versi
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesTest" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
