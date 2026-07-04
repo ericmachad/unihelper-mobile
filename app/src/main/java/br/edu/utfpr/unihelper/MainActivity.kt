@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.rememberNavController
+import br.edu.utfpr.unihelper.navigation.NavGraph
 import br.edu.utfpr.unihelper.ui.theme.Background
 import br.edu.utfpr.unihelper.ui.theme.UnihelperTheme
 
@@ -20,7 +22,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Background
                 ) {
-                    // NavGraph será inserido aqui na Fase 0 parte 2
+                    val navController = rememberNavController()
+                    NavGraph(navController = navController)
                 }
             }
         }
