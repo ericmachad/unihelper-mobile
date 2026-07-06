@@ -1,23 +1,26 @@
 package br.edu.utfpr.unihelper.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import br.edu.utfpr.unihelper.auth.ui.LoginScreen
 import br.edu.utfpr.unihelper.auth.ui.RegisterScreen
 import br.edu.utfpr.unihelper.auth.ui.SplashScreen
+import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaDetalheScreen
+import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaFormScreen
+import br.edu.utfpr.unihelper.home.ui.HomeScreen
 
 object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val HOME = "home"
+    const val DISCIPLINA_CRIAR = "disciplina/criar"
+    const val DISCIPLINA_DETALHE = "disciplina/{id}"
+    const val DISCIPLINA_EDITAR = "disciplina/editar/{id}"
 }
 
 @Composable
@@ -65,17 +68,35 @@ fun NavGraph(navController: NavHostController) {
             )
         }
         composable(Routes.HOME) {
-            HomePlaceholder()
+            HomeScreen(navController = navController)
         }
-    }
-}
-
-@Composable
-private fun HomePlaceholder() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Home — Em construção")
+        composable(Routes.DISCIPLINA_CRIAR) {
+            DisciplinaFormScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Routes.DISCIPLINA_DETALHE,
+            arguments = listOf(navArgument("id") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id") ?: return@composable
+            DisciplinaDetalheScreen(
+                disciplinaId = id,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { editId ->
+                    navController.navigate("disciplina/editar/$editId")
+                }
+            )
+        }
+        composable(
+            route = Routes.DISCIPLINA_EDITAR,
+            arguments = listOf(navArgument("id") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id") ?: return@composable
+            DisciplinaFormScreen(
+                disciplinaId = id,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }

@@ -4,6 +4,7 @@ import android.app.Application
 import br.edu.utfpr.unihelper.auth.di.authModule
 import br.edu.utfpr.unihelper.core.di.databaseModule
 import br.edu.utfpr.unihelper.core.di.networkModule
+import br.edu.utfpr.unihelper.disciplina.di.disciplinaModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
@@ -12,7 +13,7 @@ class UnihelperApp : Application() {
         super.onCreate()
         startKoin {
             androidContext(this@UnihelperApp)
-            modules(networkModule, databaseModule, authModule)
+            modules(networkModule, databaseModule, authModule, disciplinaModule)
         }
     }
 }
