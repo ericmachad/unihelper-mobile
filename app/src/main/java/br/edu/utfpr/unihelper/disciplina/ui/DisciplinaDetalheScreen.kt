@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.edu.utfpr.unihelper.avaliacao.ui.BlocoAvaliacao
 import br.edu.utfpr.unihelper.disciplina.data.remote.DiaSemana
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
 import br.edu.utfpr.unihelper.ui.theme.Accent
@@ -329,6 +330,10 @@ fun DisciplinaDetalheScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            BlocoAvaliacao(disciplinaId = disciplinaId)
 
             Spacer(modifier = Modifier.height(24.dp))
 
