@@ -2,6 +2,7 @@ package br.edu.utfpr.unihelper
 
 import android.app.Application
 import br.edu.utfpr.unihelper.auth.di.authModule
+import br.edu.utfpr.unihelper.avaliacao.di.avaliacaoModule
 import br.edu.utfpr.unihelper.core.di.databaseModule
 import br.edu.utfpr.unihelper.core.di.networkModule
 import br.edu.utfpr.unihelper.disciplina.di.disciplinaModule
@@ -13,7 +14,7 @@ class UnihelperApp : Application() {
         super.onCreate()
         startKoin {
             androidContext(this@UnihelperApp)
-            modules(networkModule, databaseModule, authModule, disciplinaModule)
+            modules(networkModule, databaseModule, authModule, disciplinaModule, avaliacaoModule)
         }
     }
 }
