@@ -8,33 +8,37 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface AvaliacaoApi {
 
-    @GET("disciplinas/{disciplinaId}/avaliacoes")
-    suspend fun listarPorDisciplina(@Path("disciplinaId") disciplinaId: String): List<AvaliacaoResponse>
+    @GET("eventos/disciplinas/{disciplinaId}")
+    suspend fun listarPorDisciplina(@Path("disciplinaId") disciplinaId: String): List<EventoResponse>
 
-    @POST("disciplinas/{disciplinaId}/avaliacoes")
-    suspend fun criar(
-        @Path("disciplinaId") disciplinaId: String,
-        @Body request: CriarAvaliacaoRequest
-    ): AvaliacaoResponse
+    @POST("eventos")
+    suspend fun criar(@Body request: CriarEventoRequest): EventoResponse
 
-    @GET("avaliacoes/{id}")
-    suspend fun buscarPorId(@Path("id") id: String): AvaliacaoResponse
+    @GET("eventos/{id}")
+    suspend fun buscarPorId(@Path("id") id: String): EventoResponse
 
-    @PUT("avaliacoes/{id}")
+    @PUT("eventos/{id}")
     suspend fun atualizar(
         @Path("id") id: String,
-        @Body request: CriarAvaliacaoRequest
-    ): AvaliacaoResponse
+        @Body request: CriarEventoRequest
+    ): EventoResponse
 
-    @DELETE("avaliacoes/{id}")
+    @DELETE("eventos/{id}")
     suspend fun excluir(@Path("id") id: String): Response<Unit>
 
-    @PATCH("avaliacoes/{id}/nota")
+    @PATCH("eventos/{id}/nota")
     suspend fun lancarNota(
         @Path("id") id: String,
         @Body request: LancarNotaRequest
-    ): AvaliacaoResponse
+    ): EventoResponse
+
+    @GET("eventos/disciplinas/{disciplinaId}/media")
+    suspend fun calcularMedia(
+        @Path("disciplinaId") disciplinaId: String,
+        @Query("mediaMinima") mediaMinima: Float = 6.0f
+    ): MediaResponse
 }

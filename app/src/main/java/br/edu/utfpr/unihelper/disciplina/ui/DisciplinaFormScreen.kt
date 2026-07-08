@@ -84,6 +84,7 @@ fun DisciplinaFormScreen(
     val disciplinaEditando by viewModel.disciplinaEditando.collectAsState()
 
     var nome by remember { mutableStateOf("") }
+    var professor by remember { mutableStateOf("") }
     var cargaTotal by remember { mutableStateOf("") }
     var cargaSemanal by remember { mutableStateOf("") }
     var limiteFaltas by remember { mutableStateOf("") }
@@ -104,6 +105,7 @@ fun DisciplinaFormScreen(
     LaunchedEffect(disciplinaEditando) {
         disciplinaEditando?.let { d ->
             nome = d.nome
+            professor = d.professor ?: ""
             cargaTotal = d.cargaHorariaTotal.toString()
             cargaSemanal = d.cargaHorariaSemanal.toString()
             limiteFaltas = d.limiteFaltas.toString()
@@ -196,6 +198,18 @@ fun DisciplinaFormScreen(
                 label = { Text("Nome da Disciplina") },
                 isError = nomeError != null || apiError != null,
                 supportingText = nomeError?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = textFieldColors(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = professor,
+                onValueChange = { professor = it; apiError = null },
+                label = { Text("Professor (opcional)") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
@@ -298,6 +312,7 @@ fun DisciplinaFormScreen(
                 onClick = {
                     val request = CriarDisciplinaRequest(
                         nome = nome.trim(),
+                        professor = professor.trim().ifBlank { null },
                         cargaHorariaTotal = cargaTotal.toIntOrNull() ?: 0,
                         cargaHorariaSemanal = cargaSemanal.toIntOrNull() ?: 0,
                         limiteFaltas = limiteFaltas.toIntOrNull() ?: 0,

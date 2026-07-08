@@ -2,10 +2,12 @@ package br.edu.utfpr.unihelper.avaliacao.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -16,6 +18,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -47,7 +50,7 @@ import java.util.Locale
 fun AvaliacaoDialog(
     disciplinaId: String,
     avaliacao: AvaliacaoEntity? = null,
-    onSalvar: (descricao: String, peso: Float, data: String, valor: Float?) -> Unit,
+    onSalvar: (descricao: String, peso: Float, data: String, valor: Float?, tipo: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val editando = avaliacao != null
@@ -60,6 +63,7 @@ fun AvaliacaoDialog(
     var pesoError by remember { mutableStateOf(false) }
     var dataError by remember { mutableStateOf(false) }
     var dataErrorMsg by remember { mutableStateOf("") }
+    var selectedTipo by remember { mutableStateOf(avaliacao?.tipo ?: "PROVA") }
 
     val dateRegex = Regex("""^\d{4}-\d{2}-\d{2}$""")
 
@@ -148,6 +152,25 @@ fun AvaliacaoDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                Text(
+                    text = "Tipo",
+                    fontSize = 13.sp,
+                    color = TextGray
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row {
+                    listOf("PROVA", "TRABALHO").forEach { tipo ->
+                        FilterChip(
+                            selected = selectedTipo == tipo,
+                            onClick = { selectedTipo = tipo },
+                            label = { Text(tipo, fontSize = 13.sp) },
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 OutlinedTextField(
                     value = data,
                     onValueChange = { data = it; dataError = false; dataErrorMsg = "" },
@@ -194,7 +217,7 @@ fun AvaliacaoDialog(
                     }
 
                     if (!descricaoError && !pesoError && !dataError) {
-                        onSalvar(descricao, peso.toFloat(), data, null)
+                        onSalvar(descricao, peso.toFloat(), data, null, selectedTipo)
                     }
                 },
                 shape = RoundedCornerShape(12.dp),

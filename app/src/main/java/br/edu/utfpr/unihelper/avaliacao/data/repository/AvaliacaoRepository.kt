@@ -3,8 +3,10 @@ package br.edu.utfpr.unihelper.avaliacao.data.repository
 import br.edu.utfpr.unihelper.avaliacao.data.local.AvaliacaoDao
 import br.edu.utfpr.unihelper.avaliacao.data.local.AvaliacaoEntity
 import br.edu.utfpr.unihelper.avaliacao.data.remote.AvaliacaoApi
-import br.edu.utfpr.unihelper.avaliacao.data.remote.CriarAvaliacaoRequest
+import br.edu.utfpr.unihelper.avaliacao.data.remote.CriarEventoRequest
 import br.edu.utfpr.unihelper.avaliacao.data.remote.LancarNotaRequest
+import br.edu.utfpr.unihelper.avaliacao.data.remote.MediaResponse
+import br.edu.utfpr.unihelper.core.network.safeApiCall
 import kotlinx.coroutines.flow.Flow
 
 class AvaliacaoRepository(
@@ -14,60 +16,90 @@ class AvaliacaoRepository(
     fun listarPorDisciplina(disciplinaId: String): Flow<List<AvaliacaoEntity>> =
         dao.listarPorDisciplina(disciplinaId)
 
+    suspend fun syncDoBackend(disciplinaId: String) {
+        safeApiCall {
+            api.listarPorDisciplina(disciplinaId)
+        }.onSuccess { eventos ->
+            eventos.forEach { evento ->
+                val entity = AvaliacaoEntity(
+                    id = evento.id,
+                    descricao = evento.titulo,
+                    peso = evento.peso ?: 0f,
+                    data = evento.dataHoraInicio.take(10),
+                    valor = evento.valor,
+                    tipo = evento.tipo,
+                    disciplinaId = evento.disciplinaId ?: disciplinaId
+                )
+                dao.inserir(entity)
+            }
+        }
+    }
+
+    suspend fun calcularMedia(
+        disciplinaId: String,
+        mediaMinima: Float = 6.0f
+    ): Result<MediaResponse> = safeApiCall {
+        api.calcularMedia(disciplinaId, mediaMinima)
+    }
+
     suspend fun criar(
         avaliacao: AvaliacaoEntity,
         disciplinaId: String
     ) {
         dao.inserir(avaliacao)
-        try {
-            val response = api.criar(
-                disciplinaId = disciplinaId,
-                request = CriarAvaliacaoRequest(
-                    descricao = avaliacao.descricao,
+        safeApiCall {
+            api.criar(
+                CriarEventoRequest(
+                    titulo = avaliacao.descricao,
+                    tipo = avaliacao.tipo,
+                    dataHoraInicio = "${avaliacao.data}T00:00:00",
+                    dataHoraFim = "${avaliacao.data}T23:59:00",
+                    valor = avaliacao.valor,
                     peso = avaliacao.peso,
-                    data = avaliacao.data,
-                    valor = avaliacao.valor
+                    disciplinaId = disciplinaId
                 )
             )
-            if (response.id != avaliacao.id) {
-                dao.deletarPorId(avaliacao.id)
-                dao.inserir(
-                    avaliacao.copy(id = response.id)
+        }.onSuccess { response ->
+            dao.deletarPorId(avaliacao.id)
+            dao.inserir(
+                avaliacao.copy(
+                    id = response.id,
+                    descricao = response.titulo,
+                    peso = response.peso ?: 0f,
+                    data = response.dataHoraInicio.take(10),
+                    valor = response.valor,
+                    tipo = response.tipo,
+                    disciplinaId = response.disciplinaId ?: disciplinaId
                 )
-            }
-        } catch (_: Exception) {
+            )
         }
     }
 
     suspend fun atualizar(avaliacao: AvaliacaoEntity) {
         dao.atualizar(avaliacao)
-        try {
+        safeApiCall {
             api.atualizar(
                 id = avaliacao.id,
-                request = CriarAvaliacaoRequest(
-                    descricao = avaliacao.descricao,
+                CriarEventoRequest(
+                    titulo = avaliacao.descricao,
+                    tipo = avaliacao.tipo,
+                    dataHoraInicio = "${avaliacao.data}T00:00:00",
+                    dataHoraFim = "${avaliacao.data}T23:59:00",
+                    valor = avaliacao.valor,
                     peso = avaliacao.peso,
-                    data = avaliacao.data,
-                    valor = avaliacao.valor
+                    disciplinaId = avaliacao.disciplinaId
                 )
             )
-        } catch (_: Exception) {
         }
     }
 
     suspend fun deletar(id: String) {
         dao.deletarPorId(id)
-        try {
-            api.excluir(id)
-        } catch (_: Exception) {
-        }
+        safeApiCall { api.excluir(id) }
     }
 
     suspend fun lancarNota(id: String, valor: Float) {
         dao.lancarNota(id, valor)
-        try {
-            api.lancarNota(id, LancarNotaRequest(valor))
-        } catch (_: Exception) {
-        }
+        safeApiCall { api.lancarNota(id, LancarNotaRequest(valor)) }
     }
 }

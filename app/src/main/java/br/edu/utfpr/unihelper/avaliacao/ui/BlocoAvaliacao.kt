@@ -39,12 +39,10 @@ import br.edu.utfpr.unihelper.ui.theme.Border
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Success
 import br.edu.utfpr.unihelper.ui.theme.TextGray
-import org.koin.androidx.compose.koinViewModel
-
 @Composable
 fun BlocoAvaliacao(
     disciplinaId: String,
-    viewModel: AvaliacaoViewModel = koinViewModel()
+    viewModel: AvaliacaoViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -57,8 +55,8 @@ fun BlocoAvaliacao(
         AvaliacaoDialog(
             disciplinaId = disciplinaId,
             avaliacao = uiState.avaliacaoParaEdicao,
-            onSalvar = { descricao, peso, data, valor ->
-                viewModel.criarOuAtualizar(disciplinaId, descricao, peso, data, valor)
+            onSalvar = { descricao, peso, data, valor, tipo ->
+                viewModel.criarOuAtualizar(disciplinaId, descricao, peso, data, valor, tipo)
             },
             onDismiss = { viewModel.fecharDialog() }
         )

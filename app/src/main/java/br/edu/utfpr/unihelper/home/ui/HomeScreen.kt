@@ -40,7 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import br.edu.utfpr.unihelper.agenda.ui.AgendaCRUDScreen
+import br.edu.utfpr.unihelper.agenda.ui.AgendaViewModel
 import br.edu.utfpr.unihelper.auth.ui.AuthViewModel
+import br.edu.utfpr.unihelper.dashboard.ui.DashboardScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaTabContent
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaViewModel
 import br.edu.utfpr.unihelper.navigation.Routes
@@ -78,6 +81,7 @@ fun HomeScreen(
     val user = authState.user
 
     val deleteState by disciplinaViewModel.deleteState.collectAsState()
+    val agendaViewModel: AgendaViewModel = koinViewModel(viewModelStoreOwner = activity)
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(deleteState.sucesso, deleteState.error) {
@@ -139,6 +143,15 @@ fun HomeScreen(
                         Icon(Icons.Default.Add, contentDescription = "Adicionar Disciplina")
                     }
                 }
+                2 -> {
+                    FloatingActionButton(
+                        onClick = { agendaViewModel.abrirCriarEvento() },
+                        containerColor = Primary,
+                        contentColor = Surface
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Adicionar Evento")
+                    }
+                }
             }
         },
         bottomBar = {
@@ -178,7 +191,7 @@ fun HomeScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedTab) {
-                0 -> InicioTab()
+                0 -> DashboardScreen()
                 1 -> DisciplinaTabContent(
                     disciplinas = disciplinaState.disciplinas,
                     isLoading = disciplinaState.isLoading,
@@ -194,39 +207,11 @@ fun HomeScreen(
                     userName = user?.nomeCompleto,
                     userCurso = user?.curso
                 )
-                2 -> AgendaTab()
+                2 -> AgendaCRUDScreen(viewModel = agendaViewModel)
                 3 -> DocumentosTab()
                 4 -> PerfilTab(navController = navController)
             }
         }
-    }
-}
-
-@Composable
-private fun InicioTab() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Dashboard",
-            style = MaterialTheme.typography.titleLarge,
-            color = TextGray
-        )
-    }
-}
-
-@Composable
-private fun AgendaTab() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Agenda",
-            style = MaterialTheme.typography.titleLarge,
-            color = TextGray
-        )
     }
 }
 
