@@ -9,7 +9,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -49,22 +48,49 @@ class AvaliacaoViewModel(
 
     fun carregar(disciplinaId: String) {
         viewModelScope.launch {
-            combine(
-                repository.listarPorDisciplina(disciplinaId),
-                mediaConfig.mediaMinima
-            ) { avaliacoes, mediaMinima ->
+            _uiState.update { it.copy(isLoading = true) }
+
+            repository.syncDoBackend(disciplinaId)
+
+            mediaConfig.mediaMinima.collect { mediaMinima ->
+                _uiState.update { it.copy(mediaMinima = mediaMinima) }
+            }
+        }
+
+        viewModelScope.launch {
+            repository.listarPorDisciplina(disciplinaId).collect { avaliacoes ->
+                val mediaMinima = _uiState.value.mediaMinima
                 val stats = calcularEstatisticas(avaliacoes, mediaMinima)
                 _uiState.update {
                     it.copy(
                         avaliacoes = avaliacoes,
                         isLoading = false,
-                        mediaMinima = mediaMinima,
                         media = stats.media,
                         notaMinimaNecessaria = stats.notaMinimaNecessaria,
                         statusAprovacao = stats.statusAprovacao
                     )
                 }
-            }.collect { }
+            }
+        }
+
+        viewModelScope.launch {
+            repository.calcularMedia(disciplinaId, _uiState.value.mediaMinima)
+                .onSuccess { mediaResponse ->
+                    val status = when (mediaResponse.statusAprovacao) {
+                        "APROVADO" -> StatusAprovacao.APROVADO
+                        "RECUPERACAO" -> StatusAprovacao.RECUPERACAO
+                        "REPROVADO" -> StatusAprovacao.REPROVADO
+                        else -> StatusAprovacao.INDEFINIDO
+                    }
+                    _uiState.update {
+                        it.copy(
+                            media = mediaResponse.media ?: it.media,
+                            notaMinimaNecessaria = mediaResponse.notaMinimaNecessaria,
+                            statusAprovacao = status,
+                            isLoading = false
+                        )
+                    }
+                }
         }
     }
 
@@ -102,13 +128,14 @@ class AvaliacaoViewModel(
         descricao: String,
         peso: Float,
         data: String,
-        valor: Float? = null
+        valor: Float? = null,
+        tipo: String = "PROVA"
     ) {
         val edicao = _uiState.value.avaliacaoParaEdicao
         viewModelScope.launch {
             if (edicao != null) {
                 repository.atualizar(
-                    edicao.copy(descricao = descricao, peso = peso, data = data)
+                    edicao.copy(descricao = descricao, peso = peso, data = data, tipo = tipo)
                 )
                 fecharDialog()
                 exibirSucesso("Avaliação atualizada")
@@ -120,6 +147,7 @@ class AvaliacaoViewModel(
                         peso = peso,
                         data = data,
                         valor = valor,
+                        tipo = tipo,
                         disciplinaId = disciplinaId
                     ),
                     disciplinaId = disciplinaId

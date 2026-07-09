@@ -12,7 +12,7 @@ val databaseModule = module {
             androidContext(),
             AppDatabase::class.java,
             "unihelper_db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     single { MediaConfig(androidContext()) }

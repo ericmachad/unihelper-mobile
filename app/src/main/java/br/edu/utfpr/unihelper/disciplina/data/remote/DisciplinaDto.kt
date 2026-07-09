@@ -26,6 +26,7 @@ data class HorarioResponse(
 data class DisciplinaResponse(
     val id: String,
     val nome: String,
+    val professor: String? = null,
     val cargaHorariaTotal: Int,
     val cargaHorariaSemanal: Int,
     val limiteFaltas: Int,
@@ -44,6 +45,7 @@ data class CriarHorarioRequest(
 @Serializable
 data class CriarDisciplinaRequest(
     val nome: String,
+    val professor: String? = null,
     val cargaHorariaTotal: Int,
     val cargaHorariaSemanal: Int,
     val limiteFaltas: Int,

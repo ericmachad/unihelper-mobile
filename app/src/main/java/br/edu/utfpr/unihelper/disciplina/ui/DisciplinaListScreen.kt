@@ -428,7 +428,7 @@ private fun StatusBadge(faltasCriticas: Boolean) {
     val (text, color) = if (faltasCriticas) {
         "Atenção" to Alert
     } else {
-        "A Cursar" to Accent
+        "Cursando" to Accent
     }
     Box(
         modifier = Modifier

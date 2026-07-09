@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.edu.utfpr.unihelper.avaliacao.ui.AvaliacaoViewModel
 import br.edu.utfpr.unihelper.avaliacao.ui.BlocoAvaliacao
 import br.edu.utfpr.unihelper.disciplina.data.remote.DiaSemana
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
@@ -90,9 +91,12 @@ fun DisciplinaDetalheScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val deleteState by viewModel.deleteState.collectAsState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     val disciplina = uiState.disciplinas.find { it.id == disciplinaId }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val avaliacaoViewModel: AvaliacaoViewModel = koinViewModel()
+    val avaliacaoState by avaliacaoViewModel.uiState.collectAsState()
 
     LaunchedEffect(deleteState.sucesso) {
         if (deleteState.sucesso) {
@@ -204,6 +208,13 @@ fun DisciplinaDetalheScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                            if (disciplina.professor != null) {
+                                Text(
+                                    text = disciplina.professor,
+                                    fontSize = 12.sp,
+                                    color = TextGray
+                                )
+                            }
                             Text(
                                 text = "${disciplina.faltasRegistradas} falta(s) · ${disciplina.limiteFaltas} limite",
                                 fontSize = 12.sp,
@@ -240,7 +251,7 @@ fun DisciplinaDetalheScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         InfoItem(
                             label = "Média Atual",
-                            value = "--",
+                            value = if (avaliacaoState.media != null) "%.1f".format(avaliacaoState.media) else "--",
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -333,7 +344,7 @@ fun DisciplinaDetalheScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            BlocoAvaliacao(disciplinaId = disciplinaId)
+            BlocoAvaliacao(disciplinaId = disciplinaId, viewModel = avaliacaoViewModel)
 
             Spacer(modifier = Modifier.height(24.dp))
 

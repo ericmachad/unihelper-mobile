@@ -11,5 +11,6 @@ data class AvaliacaoEntity(
     val peso: Float,
     val data: String,
     val valor: Float? = null,
+    val tipo: String = "PROVA",
     val disciplinaId: String
 )

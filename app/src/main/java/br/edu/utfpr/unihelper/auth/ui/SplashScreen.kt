@@ -1,5 +1,7 @@
 package br.edu.utfpr.unihelper.auth.ui
 
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,11 +31,16 @@ fun SplashScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToHome: () -> Unit
 ) {
-    val viewModel: AuthViewModel = org.koin.androidx.compose.koinViewModel()
+    val activity = LocalActivity.current as ComponentActivity
+    val viewModel: AuthViewModel = org.koin.androidx.compose.koinViewModel(viewModelStoreOwner = activity)
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.checkSession()
+        delay(10_000)
+        if (!uiState.sessionChecked) {
+            onNavigateToLogin()
+        }
     }
 
     LaunchedEffect(uiState.sessionChecked) {
