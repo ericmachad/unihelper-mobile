@@ -1,5 +1,7 @@
 package br.edu.utfpr.unihelper.auth.data.repository
 
+import br.edu.utfpr.unihelper.auth.data.remote.AlterarSenhaRequest
+import br.edu.utfpr.unihelper.auth.data.remote.AtualizarPerfilRequest
 import br.edu.utfpr.unihelper.auth.data.remote.AuthApi
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.remote.LoginRequest
@@ -60,6 +62,36 @@ class   AuthRepository(
 
     fun logout() {
         tokenStorage.clearAll()
+    }
+
+    suspend fun logoutComApi(): Result<Unit> = safeApiCall {
+        authApi.logout()
+        tokenStorage.clearAll()
+    }
+
+    suspend fun getMe(): Result<AuthResponse> = safeApiCall {
+        val response = authApi.me()
+        persistAuth(response)
+        response
+    }
+
+    suspend fun atualizarPerfil(
+        nomeCompleto: String?,
+        apelido: String?,
+        curso: String?
+    ): Result<AuthResponse> = safeApiCall {
+        val response = authApi.atualizarPerfil(
+            AtualizarPerfilRequest(nomeCompleto, apelido, curso)
+        )
+        persistAuth(response)
+        response
+    }
+
+    suspend fun alterarSenha(
+        senhaAtual: String,
+        novaSenha: String
+    ): Result<Unit> = safeApiCall {
+        authApi.alterarSenha(AlterarSenhaRequest(senhaAtual, novaSenha))
     }
 
     private fun persistAuth(response: AuthResponse) {
