@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -36,6 +37,10 @@ fun SplashScreen(
 
     LaunchedEffect(Unit) {
         viewModel.checkSession()
+        delay(10_000)
+        if (!uiState.sessionChecked) {
+            onNavigateToLogin()
+        }
     }
 
     LaunchedEffect(uiState.sessionChecked) {

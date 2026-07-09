@@ -46,6 +46,7 @@ import br.edu.utfpr.unihelper.auth.ui.AuthViewModel
 import br.edu.utfpr.unihelper.dashboard.ui.DashboardScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaTabContent
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaViewModel
+import br.edu.utfpr.unihelper.documento.ui.DocumentosTab
 import br.edu.utfpr.unihelper.navigation.Routes
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
@@ -208,24 +209,13 @@ fun HomeScreen(
                     userCurso = user?.curso
                 )
                 2 -> AgendaCRUDScreen(viewModel = agendaViewModel)
-                3 -> DocumentosTab()
+                3 -> DocumentosTab(
+                    disciplinas = disciplinaState.disciplinas,
+                    isLoadingDisciplinas = disciplinaState.isLoading
+                )
                 4 -> PerfilTab(navController = navController)
             }
         }
-    }
-}
-
-@Composable
-private fun DocumentosTab() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Documentos",
-            style = MaterialTheme.typography.titleLarge,
-            color = TextGray
-        )
     }
 }
 
