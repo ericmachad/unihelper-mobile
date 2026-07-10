@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -41,12 +44,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +78,9 @@ fun LoginScreen(
     var senha by remember { mutableStateOf("") }
     val fieldErrors = remember { mutableStateMapOf<String, String?>() }
     val focusManager = LocalFocusManager.current
+    var senhaVisivel by remember { mutableStateOf(false) }
+    val emailTouched = remember { mutableStateOf(false) }
+    val senhaTouched = remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
@@ -77,30 +88,49 @@ fun LoginScreen(
         }
     }
 
+    fun validarEmail(): Boolean {
+        val emailNormalizado = email.trim().lowercase()
+        return when {
+            email.isBlank() -> {
+                fieldErrors["email"] = "Campo obrigatório"
+                false
+            }
+            !EMAIL_REGEX.matches(emailNormalizado) -> {
+                fieldErrors["email"] = "Email inválido"
+                false
+            }
+            else -> {
+                fieldErrors.remove("email")
+                true
+            }
+        }
+    }
+
+    fun validarSenha(): Boolean {
+        return when {
+            senha.isBlank() -> {
+                fieldErrors["senha"] = "Campo obrigatório"
+                false
+            }
+            else -> {
+                fieldErrors.remove("senha")
+                true
+            }
+        }
+    }
+
     fun validate(): Boolean {
         fieldErrors.clear()
-        var valid = true
-
-        if (email.isBlank()) {
-            fieldErrors["email"] = "Campo obrigatório"
-            valid = false
-        } else if (!EMAIL_REGEX.matches(email.trim())) {
-            fieldErrors["email"] = "Email inválido"
-            valid = false
-        }
-
-        if (senha.isBlank()) {
-            fieldErrors["senha"] = "Campo obrigatório"
-            valid = false
-        }
-
-        return valid
+        val emailValido = validarEmail()
+        val senhaValida = validarSenha()
+        return emailValido && senhaValida
     }
 
     fun submit() {
         focusManager.clearFocus()
+        val emailNormalizado = email.trim().lowercase()
         if (validate()) {
-            viewModel.login(email.trim(), senha)
+            viewModel.login(emailNormalizado, senha)
         }
     }
 
@@ -147,6 +177,7 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -190,7 +221,13 @@ fun LoginScreen(
                 placeholder = { Text("seu@email.com") },
                 isError = fieldErrors["email"] != null,
                 supportingText = fieldErrors["email"]?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { state ->
+                        if (state.isFocused) emailTouched.value = true
+                        if (!state.isFocused && emailTouched.value) validarEmail()
+                    },
+                enabled = !uiState.isLoading,
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
                 keyboardOptions = KeyboardOptions(
@@ -218,7 +255,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Campo Palavra-passe
+            // Campo Senha
             OutlinedTextField(
                 value = senha,
                 onValueChange = { senha = it; fieldErrors.remove("senha") },
@@ -226,10 +263,25 @@ fun LoginScreen(
                 placeholder = { Text("••••••••") },
                 isError = fieldErrors["senha"] != null,
                 supportingText = fieldErrors["senha"]?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { state ->
+                        if (state.isFocused) senhaTouched.value = true
+                        if (!state.isFocused && senhaTouched.value) validarSenha()
+                    },
+                enabled = !uiState.isLoading,
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (senhaVisivel) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { senhaVisivel = !senhaVisivel }) {
+                        Icon(
+                            imageVector = if (senhaVisivel) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (senhaVisivel) "Ocultar senha" else "Mostrar senha",
+                            tint = TextGray
+                        )
+                    }
+                },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
@@ -265,18 +317,11 @@ fun LoginScreen(
                 ),
                 enabled = !uiState.isLoading
             ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = "Entrar",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "Entrar",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -291,7 +336,8 @@ fun LoginScreen(
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = Primary,
                 ),
-                border = BorderStroke(1.dp, Primary)
+                border = BorderStroke(1.dp, Primary),
+                enabled = !uiState.isLoading
             ) {
                 Text(
                     text = "Criar Conta",
@@ -301,6 +347,17 @@ fun LoginScreen(
             }
 
             Spacer(modifier = Modifier.height(40.dp))
+        }
+
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Primary)
+            }
         }
     }
 }

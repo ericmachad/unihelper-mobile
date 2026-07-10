@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import br.edu.utfpr.unihelper.agenda.data.remote.AgendaItemResponse
 import br.edu.utfpr.unihelper.agenda.data.remote.EventoRequest
 import br.edu.utfpr.unihelper.agenda.data.repository.AgendaRepository
+import br.edu.utfpr.unihelper.core.sync.AuthEvent
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
 import br.edu.utfpr.unihelper.disciplina.data.repository.DisciplinaRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +31,8 @@ data class AgendaUiState(
 
 class AgendaViewModel(
     private val repository: AgendaRepository,
-    private val disciplinaRepository: DisciplinaRepository
+    private val disciplinaRepository: DisciplinaRepository,
+    private val authEventBus: AuthEventBus
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AgendaUiState())
@@ -38,6 +41,18 @@ class AgendaViewModel(
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
     init {
+        viewModelScope.launch {
+            authEventBus.events.collect { event ->
+                when (event) {
+                    is AuthEvent.LoggedOut -> resetState()
+                    is AuthEvent.LoggedIn -> {
+                        resetState()
+                        carregarProximos()
+                        carregarDisciplinas()
+                    }
+                }
+            }
+        }
         carregarProximos()
         carregarDisciplinas()
     }
@@ -153,6 +168,10 @@ class AgendaViewModel(
                     }
                 )
         }
+    }
+
+    fun resetState() {
+        _uiState.value = AgendaUiState(isLoading = true)
     }
 
     fun limparMensagens() {

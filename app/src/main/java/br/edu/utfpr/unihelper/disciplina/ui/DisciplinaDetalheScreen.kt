@@ -3,7 +3,6 @@ package br.edu.utfpr.unihelper.disciplina.ui
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,10 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -33,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -84,7 +79,6 @@ private fun corDisciplina(nome: String): Color {
 fun DisciplinaDetalheScreen(
     disciplinaId: String,
     onNavigateBack: () -> Unit,
-    onNavigateToEdit: (String) -> Unit,
     viewModel: DisciplinaViewModel = koinViewModel(
         viewModelStoreOwner = LocalActivity.current as ComponentActivity
     )
@@ -345,38 +339,6 @@ fun DisciplinaDetalheScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             BlocoAvaliacao(disciplinaId = disciplinaId, viewModel = avaliacaoViewModel)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { onNavigateToEdit(disciplinaId) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Primary)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, tint = Primary)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Editar", color = Primary)
-                }
-                Button(
-                    onClick = { showDeleteDialog = true },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Alert)
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Excluir")
-                }
-            }
 
             Spacer(modifier = Modifier.height(32.dp))
         }

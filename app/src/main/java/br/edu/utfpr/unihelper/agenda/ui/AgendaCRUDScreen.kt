@@ -55,7 +55,6 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AgendaCRUDScreen(viewModel: AgendaViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
@@ -106,11 +105,6 @@ fun AgendaCRUDScreen(viewModel: AgendaViewModel = koinViewModel()) {
     }
 
     Column(modifier = Modifier.fillMaxSize().background(Background)) {
-        androidx.compose.material3.TopAppBar(
-            title = { Text("Agenda", fontWeight = FontWeight.Bold) },
-            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Surface)
-        )
-
         if (uiState.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Carregando...", color = TextGray)

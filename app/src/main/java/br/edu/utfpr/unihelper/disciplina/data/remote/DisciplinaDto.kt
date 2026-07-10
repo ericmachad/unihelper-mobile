@@ -32,6 +32,7 @@ data class DisciplinaResponse(
     val limiteFaltas: Int,
     val faltasRegistradas: Int,
     val faltasCriticas: Boolean,
+    val media: Float? = null,
     val horarios: List<HorarioResponse>
 )
 

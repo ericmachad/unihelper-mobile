@@ -2,19 +2,23 @@ package br.edu.utfpr.unihelper.home.ui
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -34,6 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,10 +55,13 @@ import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaTabContent
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaViewModel
 import br.edu.utfpr.unihelper.documento.ui.DocumentosTab
 import br.edu.utfpr.unihelper.navigation.Routes
+import br.edu.utfpr.unihelper.notificacao.data.repository.NotificacaoRepository
+import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 private data class BottomNavItem(
     val label: String,
@@ -72,7 +81,7 @@ private val navItems = listOf(
 fun HomeScreen(
     navController: NavHostController
 ) {
-    var selectedTab by remember { mutableStateOf(1) }
+    var selectedTab by remember { mutableStateOf(0) }
 
     val activity = LocalActivity.current as ComponentActivity
     val disciplinaViewModel: DisciplinaViewModel = koinViewModel(viewModelStoreOwner = activity)
@@ -85,6 +94,23 @@ fun HomeScreen(
     val deleteState by disciplinaViewModel.deleteState.collectAsState()
     val agendaViewModel: AgendaViewModel = koinViewModel(viewModelStoreOwner = activity)
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val notificacaoRepository: NotificacaoRepository = koinInject()
+    var totalNaoLidas by remember { mutableStateOf(0L) }
+    var dashboardRefreshKey by remember { mutableStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        notificacaoRepository.listar(apenasNaoLidas = true)
+            .onSuccess { response ->
+                totalNaoLidas = response.totalNaoLidas
+            }
+    }
+
+    LaunchedEffect(user?.idUsuario) {
+        if (user != null) {
+            dashboardRefreshKey++
+        }
+    }
 
     LaunchedEffect(deleteState.sucesso, deleteState.error) {
         when {
@@ -120,29 +146,66 @@ fun HomeScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
-            when (selectedTab) {
-                1 -> {
-                    TopAppBar(
-                        title = {
-                            Column {
-                                Text(
-                                    text = "Disciplinas",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Gestão de Notas e Faltas",
-                                    fontSize = 13.sp,
-                                    color = TextGray
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = when (selectedTab) {
+                                0 -> "Início"
+                                1 -> "Disciplinas"
+                                2 -> "Agenda"
+                                3 -> "Documentos"
+                                else -> "Meu Perfil"
+                            },
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = when (selectedTab) {
+                                0 -> "Visão geral do seu semestre"
+                                1 -> "Gestão de Notas e Faltas"
+                                2 -> "Eventos e compromissos acadêmicos"
+                                3 -> "Arquivos e notas por disciplina"
+                                else -> "Gerir Conta"
+                            },
+                            fontSize = 13.sp,
+                            color = TextGray
+                        )
+                    }
+                },
+                actions = {
+                    if (selectedTab == 4) {
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            IconButton(onClick = { navController.navigate(Routes.NOTIFICACOES) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notificações",
+                                    tint = Primary
                                 )
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Surface
-                        )
-                    )
-                }
-            }
+                            if (totalNaoLidas > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(Alert, CircleShape)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .align(Alignment.TopEnd),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (totalNaoLidas > 99) "99+" else totalNaoLidas.toString(),
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Surface
+                )
+            )
         },
         floatingActionButton = {
             when (selectedTab) {
@@ -203,7 +266,7 @@ fun HomeScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedTab) {
-                0 -> DashboardScreen()
+                0 -> DashboardScreen(refreshKey = dashboardRefreshKey)
                 1 -> DisciplinaTabContent(
                     disciplinas = disciplinaState.disciplinas,
                     isLoading = disciplinaState.isLoading,
@@ -215,6 +278,7 @@ fun HomeScreen(
                     onDecrementFalta = { disciplinaViewModel.alterarFaltas(it, "DECREMENTAR") },
                     onRefresh = { disciplinaViewModel.listar(isRefresh = true) },
                     onClickCard = { id -> navController.navigate("disciplina/$id") },
+                    onEditClick = { id -> navController.navigate("disciplina/editar/$id") },
                     onDeleteClick = { id -> disciplinaViewModel.excluir(id) },
                     userName = user?.nomeCompleto,
                     userCurso = user?.curso
@@ -227,12 +291,12 @@ fun HomeScreen(
                 4 -> ProfileScreen(
                     onNavigateToEditProfile = { navController.navigate(Routes.EDITAR_PERFIL) },
                     onNavigateToChangePassword = { navController.navigate(Routes.ALTERAR_SENHA) },
-                    onNavigateToHelp = { /* TODO: tela de ajuda */ },
                     onNavigateToNotificacoes = { navController.navigate(Routes.NOTIFICACOES) },
                     onLogout = {
-                        authViewModel.logout()
-                        navController.navigate(Routes.LOGIN) {
-                            popUpTo(Routes.HOME) { inclusive = true }
+                        authViewModel.logout {
+                            navController.navigate(Routes.LOGIN) {
+                                popUpTo(Routes.HOME) { inclusive = true }
+                            }
                         }
                     }
                 )

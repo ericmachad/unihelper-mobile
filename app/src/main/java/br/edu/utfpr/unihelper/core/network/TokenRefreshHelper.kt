@@ -2,7 +2,10 @@ package br.edu.utfpr.unihelper.core.network
 
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.remote.RefreshRequest
+import br.edu.utfpr.unihelper.core.local.AppDatabase
 import br.edu.utfpr.unihelper.core.local.TokenStorage
+import br.edu.utfpr.unihelper.core.sync.AuthEvent
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,6 +19,8 @@ import java.util.concurrent.TimeUnit
 class TokenRefreshHelper(
     private val baseUrl: String,
     private val tokenStorage: TokenStorage,
+    private val database: AppDatabase,
+    private val authEventBus: AuthEventBus,
     private val isDebug: Boolean
 ) {
     private val api: RefreshApi
@@ -59,6 +64,8 @@ class TokenRefreshHelper(
             response.token
         } catch (_: Exception) {
             tokenStorage.clearAll()
+            kotlinx.coroutines.runBlocking { database.limparTudo() }
+            authEventBus.emit(AuthEvent.LoggedOut)
             null
         }
     }

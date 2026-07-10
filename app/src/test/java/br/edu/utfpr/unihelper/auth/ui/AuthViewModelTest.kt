@@ -2,6 +2,8 @@ package br.edu.utfpr.unihelper.auth.ui
 
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.repository.AuthRepository
+import br.edu.utfpr.unihelper.core.sync.AuthEvent
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -12,6 +14,7 @@ import io.mockk.runs
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -35,6 +38,9 @@ class AuthViewModelTest {
     @MockK
     private lateinit var repository: AuthRepository
 
+    @MockK
+    private lateinit var authEventBus: AuthEventBus
+
     private lateinit var viewModel: AuthViewModel
 
     private val testDispatcher = StandardTestDispatcher()
@@ -42,7 +48,9 @@ class AuthViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = AuthViewModel(repository)
+        val mockEvents = MutableSharedFlow<AuthEvent>()
+        every { authEventBus.events } returns mockEvents
+        viewModel = AuthViewModel(repository, authEventBus)
     }
 
     @After
@@ -137,12 +145,12 @@ class AuthViewModelTest {
     fun `checkSession logs out on refresh failure`() = runTest(testDispatcher) {
         every { repository.hasSession() } returns true
         coEvery { repository.refreshSession() } returns Result.failure(Exception("Sessão expirada"))
-        every { repository.logout() } just runs
+        coEvery { repository.logout() } just runs
 
         viewModel.checkSession()
         advanceUntilIdle()
 
-        verify { repository.logout() }
+        coVerify { repository.logout() }
         coVerify { repository.refreshSession() }
 
         val state = viewModel.uiState.value
@@ -153,9 +161,10 @@ class AuthViewModelTest {
 
     @Test
     fun `logout resets state to defaults`() = runTest(testDispatcher) {
-        every { repository.logout() } just runs
+        coEvery { repository.logout() } just runs
 
         viewModel.logout()
+        advanceUntilIdle()
 
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
@@ -165,11 +174,11 @@ class AuthViewModelTest {
         assertFalse(state.sessionChecked)
         assertFalse(state.isSessionValid)
 
-        verify { repository.logout() }
+        coVerify { repository.logout() }
     }
 
     @Test
-    fun `resetState returns to defaults`() = runTest(testDispatcher) {
+    fun `resetState returns to defaults`() {
         viewModel.resetState()
 
         assertEquals(AuthUiState(), viewModel.uiState.value)

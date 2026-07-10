@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -85,6 +86,7 @@ fun DisciplinaTabContent(
     onDecrementFalta: (String) -> Unit,
     onRefresh: () -> Unit,
     onClickCard: (String) -> Unit,
+    onEditClick: (String) -> Unit,
     onDeleteClick: (String) -> Unit,
     userName: String? = null,
     userCurso: String? = null
@@ -157,32 +159,13 @@ fun DisciplinaTabContent(
                     onIncrementFalta = { onIncrementFalta(disciplina.id) },
                     onDecrementFalta = { onDecrementFalta(disciplina.id) },
                     onClick = { onClickCard(disciplina.id) },
+                    onEditClick = { onEditClick(disciplina.id) },
                     onDeleteClick = { onDeleteClick(disciplina.id) }
                 )
             }
 
             if (disciplinas.isNotEmpty()) {
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.material3.OutlinedButton(
-                            onClick = onNavigateToForm,
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp, Primary
-                            )
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Adicionar Nova Disciplina", color = Primary)
-                        }
-                    }
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
@@ -240,6 +223,7 @@ private fun DisciplinaCard(
     onIncrementFalta: () -> Unit,
     onDecrementFalta: () -> Unit,
     onClick: () -> Unit,
+    onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -309,6 +293,17 @@ private fun DisciplinaCard(
                     )
                 }
                 IconButton(
+                    onClick = onEditClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar disciplina",
+                        tint = Primary.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
                     onClick = { showDeleteDialog = true },
                     modifier = Modifier.size(36.dp)
                 ) {
@@ -343,10 +338,10 @@ private fun DisciplinaCard(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         Text(
-                            text = "--",
+                            text = if (disciplina.media != null) "%.1f".format(disciplina.media) else "--",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextGray
+                            color = if (disciplina.media != null) Primary else TextGray
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(

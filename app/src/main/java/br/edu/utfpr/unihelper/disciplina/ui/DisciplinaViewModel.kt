@@ -2,6 +2,8 @@ package br.edu.utfpr.unihelper.disciplina.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.edu.utfpr.unihelper.core.sync.AuthEvent
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarDisciplinaRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
 import br.edu.utfpr.unihelper.disciplina.data.repository.DisciplinaRepository
@@ -26,7 +28,8 @@ data class FormUiState(
 )
 
 class DisciplinaViewModel(
-    private val repository: DisciplinaRepository
+    private val repository: DisciplinaRepository,
+    private val authEventBus: AuthEventBus
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DisciplinaUiState())
@@ -42,6 +45,17 @@ class DisciplinaViewModel(
     val deleteState: StateFlow<DeleteUiState> = _deleteState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            authEventBus.events.collect { event ->
+                when (event) {
+                    is AuthEvent.LoggedOut -> resetState()
+                    is AuthEvent.LoggedIn -> {
+                        resetState()
+                        listar()
+                    }
+                }
+            }
+        }
         listar()
     }
 
@@ -133,6 +147,10 @@ class DisciplinaViewModel(
                     )
                 }
         }
+    }
+
+    fun resetState() {
+        _uiState.value = DisciplinaUiState(isLoading = true)
     }
 
     fun limparSucesso() {

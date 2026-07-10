@@ -2,6 +2,8 @@ package br.edu.utfpr.unihelper.core.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import br.edu.utfpr.unihelper.agenda.data.local.EventoDao
 import br.edu.utfpr.unihelper.agenda.data.local.EventoEntity
 import br.edu.utfpr.unihelper.auth.data.local.UsuarioDao
@@ -38,4 +40,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun notificacaoDao(): NotificacaoDao
     abstract fun documentoDao(): DocumentoDao
     abstract fun usuarioDao(): UsuarioDao
+
+    suspend fun limparTudo() = withContext(Dispatchers.IO) {
+        clearAllTables()
+    }
 }

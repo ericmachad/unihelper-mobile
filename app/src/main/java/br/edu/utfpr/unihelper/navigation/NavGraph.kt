@@ -98,10 +98,7 @@ fun NavGraph(navController: NavHostController) {
             val id = backStackEntry.arguments?.getString("id") ?: return@composable
             DisciplinaDetalheScreen(
                 disciplinaId = id,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToEdit = { editId ->
-                    navController.navigate("disciplina/editar/$editId")
-                }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable(

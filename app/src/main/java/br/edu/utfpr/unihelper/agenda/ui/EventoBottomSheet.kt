@@ -92,6 +92,7 @@ fun EventoBottomSheet(
     val tipos = listOf("PROVA", "TRABALHO", "OUTRO")
     val precisaDisciplina = tipo == "PROVA" || tipo == "TRABALHO"
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    val displayDateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
@@ -220,7 +221,9 @@ fun EventoBottomSheet(
 
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
-                    value = data,
+                    value = try {
+                        LocalDate.parse(data).format(displayDateFormat)
+                    } catch (_: Exception) { data },
                     onValueChange = {},
                     label = { Text("Data") },
                     readOnly = true,

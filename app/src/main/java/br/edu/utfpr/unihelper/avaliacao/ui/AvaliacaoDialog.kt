@@ -174,7 +174,7 @@ fun AvaliacaoDialog(
                 OutlinedTextField(
                     value = data,
                     onValueChange = { data = it; dataError = false; dataErrorMsg = "" },
-                    label = { Text("Data (yyyy-MM-dd)") },
+                    label = { Text("Data") },
                     isError = dataError,
                     supportingText = if (dataError && dataErrorMsg.isNotEmpty()) {
                         { Text(dataErrorMsg, color = MaterialTheme.colorScheme.error) }
@@ -217,7 +217,7 @@ fun AvaliacaoDialog(
                     }
 
                     if (!descricaoError && !pesoError && !dataError) {
-                        onSalvar(descricao, peso.toFloat(), data, null, selectedTipo)
+                        onSalvar(descricao, peso.toFloat(), data, 0f, selectedTipo)
                     }
                 },
                 shape = RoundedCornerShape(12.dp),

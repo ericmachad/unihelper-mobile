@@ -14,5 +14,5 @@ val disciplinaModule = module {
 
     single { DisciplinaRepository(get(), get(), get()) }
 
-    viewModel { DisciplinaViewModel(get()) }
+    viewModel { DisciplinaViewModel(get(), get()) }
 }

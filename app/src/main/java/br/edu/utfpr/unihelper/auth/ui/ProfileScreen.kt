@@ -3,8 +3,6 @@ package br.edu.utfpr.unihelper.auth.ui
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,21 +13,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,32 +31,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import br.edu.utfpr.unihelper.notificacao.data.repository.NotificacaoRepository
-import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 @Composable
 fun ProfileScreen(
     onNavigateToEditProfile: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
-    onNavigateToHelp: () -> Unit,
     onNavigateToNotificacoes: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -71,17 +57,10 @@ fun ProfileScreen(
     val authState by authViewModel.uiState.collectAsState()
     val user = authState.user
 
-    val notificacaoRepository: NotificacaoRepository = koinInject()
-    var totalNaoLidas by remember { mutableStateOf(0L) }
-
     LaunchedEffect(Unit) {
         if (user == null) {
             authViewModel.carregarPerfil()
         }
-        notificacaoRepository.listar(apenasNaoLidas = true)
-            .onSuccess { response ->
-                totalNaoLidas = response.totalNaoLidas
-            }
     }
 
     Column(
@@ -90,58 +69,7 @@ fun ProfileScreen(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Meu Perfil",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Primary
-                )
-                Text(
-                    text = "Gerir Conta",
-                    fontSize = 13.sp,
-                    color = TextGray
-                )
-            }
-
-            // Notification bell with badge
-            Box(contentAlignment = Alignment.TopEnd) {
-                IconButton(onClick = onNavigateToNotificacoes) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notificações",
-                        tint = Primary
-                    )
-                }
-                if (totalNaoLidas > 0) {
-                    Box(
-                        modifier = Modifier
-                            .background(Alert, CircleShape)
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (totalNaoLidas > 99) "99+" else totalNaoLidas.toString(),
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Menu card
         Card(
@@ -156,7 +84,7 @@ fun ProfileScreen(
                 // Email option
                 MenuItem(
                     icon = Icons.Default.Email,
-                    title = "Email",
+                    title = "Informações pessoais",
                     subtitle = user?.email ?: "carregando...",
                     onClick = onNavigateToEditProfile
                 )
@@ -181,13 +109,7 @@ fun ProfileScreen(
                     thickness = 1.dp
                 )
 
-                // Ajuda e Suporte
-                MenuItem(
-                    icon = Icons.AutoMirrored.Filled.HelpOutline,
-                    title = "Ajuda e Suporte",
-                    subtitle = null,
-                    onClick = onNavigateToHelp
-                )
+
             }
         }
 

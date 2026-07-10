@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -64,9 +65,16 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 @Composable
-fun DashboardScreen(viewModel: DashboardViewModel = koinViewModel()) {
+fun DashboardScreen(
+    viewModel: DashboardViewModel = koinViewModel(),
+    refreshKey: Int = 0
+) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+
+    LaunchedEffect(refreshKey) {
+        viewModel.carregarMes()
+    }
 
     if (uiState.showFcmDialog) {
         AlertDialog(
@@ -149,19 +157,19 @@ fun DashboardScreen(viewModel: DashboardViewModel = koinViewModel()) {
                 "Próximos Eventos"
             }
 
-            Text(
-                text = tituloLista,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Primary
-            )
+                    Text(
+                        text = tituloLista,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Primary
+                    )
 
-            if (filtered.isEmpty()) {
-                EmptyEvents()
-            } else {
-                Spacer(modifier = Modifier.height(12.dp))
+                    if (filtered.isEmpty()) {
+                        EmptyEvents()
+                    } else {
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                val pagerState = rememberPagerState(pageCount = { filtered.size })
+                        val pagerState = rememberPagerState(pageCount = { filtered.size })
 
                 HorizontalPager(
                     state = pagerState,
@@ -173,29 +181,29 @@ fun DashboardScreen(viewModel: DashboardViewModel = koinViewModel()) {
                     EventCard(evento = filtered[page])
                 }
 
-                if (filtered.size > 1) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        repeat(filtered.size) { index ->
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 4.dp)
-                                    .size(
-                                        width = if (pagerState.currentPage == index) 24.dp else 8.dp,
-                                        height = 8.dp
-                                    )
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(
-                                        if (pagerState.currentPage == index) Primary
-                                        else Border
-                                    )
-                            )
+                    if (filtered.size > 1) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            repeat(filtered.size) { index ->
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 4.dp)
+                                        .size(
+                                            width = if (pagerState.currentPage == index) 24.dp else 8.dp,
+                                            height = 8.dp
+                                        )
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            if (pagerState.currentPage == index) Primary
+                                            else Color(0xFFD1D5DB)
+                                        )
+                                )
+                            }
                         }
                     }
-                }
             }
         }
 

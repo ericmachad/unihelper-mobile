@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.repository.AuthRepository
+import br.edu.utfpr.unihelper.core.sync.AuthEvent
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,7 +35,8 @@ data class ChangePasswordUiState(
 )
 
 class AuthViewModel(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val authEventBus: AuthEventBus
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -44,6 +47,25 @@ class AuthViewModel(
 
     private val _changePasswordState = MutableStateFlow(ChangePasswordUiState())
     val changePasswordState: StateFlow<ChangePasswordUiState> = _changePasswordState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            authEventBus.events.collect { event ->
+                when (event) {
+                    is AuthEvent.LoggedIn -> {
+                        _uiState.value = AuthUiState(
+                            sessionChecked = true,
+                            isSessionValid = true,
+                            user = event.user
+                        )
+                    }
+                    is AuthEvent.LoggedOut -> {
+                        _uiState.value = AuthUiState()
+                    }
+                }
+            }
+        }
+    }
 
     fun login(email: String, senha: String) {
         viewModelScope.launch {
@@ -162,9 +184,12 @@ class AuthViewModel(
         _uiState.value = AuthUiState()
     }
 
-    fun logout() {
-        authRepository.logout()
-        _uiState.value = AuthUiState()
+    fun logout(onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            authRepository.logout()
+            _uiState.value = AuthUiState()
+            onComplete?.invoke()
+        }
     }
 
     suspend fun logoutComApi() {

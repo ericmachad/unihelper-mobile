@@ -3,7 +3,10 @@ package br.edu.utfpr.unihelper.auth.data.repository
 import br.edu.utfpr.unihelper.auth.data.remote.AuthApi
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.remote.RefreshRequest
+import br.edu.utfpr.unihelper.core.local.AppDatabase
+import br.edu.utfpr.unihelper.core.local.MediaConfig
 import br.edu.utfpr.unihelper.core.local.TokenStorage
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import br.edu.utfpr.unihelper.dispositivo.data.repository.DispositivoRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -36,6 +39,15 @@ class AuthRepositoryTest {
     @MockK
     private lateinit var dispositivoRepository: DispositivoRepository
 
+    @MockK
+    private lateinit var database: AppDatabase
+
+    @MockK
+    private lateinit var authEventBus: AuthEventBus
+
+    @MockK
+    private lateinit var mediaConfig: MediaConfig
+
     private lateinit var repository: AuthRepository
 
     private val mockResponse = AuthResponse(
@@ -50,7 +62,7 @@ class AuthRepositoryTest {
 
     @org.junit.Before
     fun setup() {
-        repository = AuthRepository(authApi, tokenStorage, dispositivoRepository)
+        repository = AuthRepository(authApi, tokenStorage, database, dispositivoRepository, authEventBus, mediaConfig)
         every { tokenStorage.saveToken(any()) } just runs
         every { tokenStorage.saveRefreshToken(any()) } just runs
         every { tokenStorage.saveIdUsuario(any()) } just runs
@@ -59,6 +71,9 @@ class AuthRepositoryTest {
         every { tokenStorage.saveEmail(any()) } just runs
         every { tokenStorage.saveCurso(any()) } just runs
         every { tokenStorage.getFcmToken() } returns null
+        every { authEventBus.emit(any()) } just runs
+        coEvery { database.limparTudo() } just runs
+        coEvery { mediaConfig.clear() } just runs
     }
 
     @Test
@@ -199,11 +214,13 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `logout clears all storage`() {
+    fun `logout clears all storage`() = runTest {
         every { tokenStorage.clearAll() } just runs
 
         repository.logout()
 
         verify { tokenStorage.clearAll() }
+        coVerify { database.limparTudo() }
+        coVerify { mediaConfig.clear() }
     }
 }

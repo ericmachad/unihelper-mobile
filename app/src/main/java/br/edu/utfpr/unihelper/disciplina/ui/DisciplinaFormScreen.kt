@@ -142,8 +142,10 @@ fun DisciplinaFormScreen(
         derivedStateOf {
             val ct = cargaTotal.toIntOrNull() ?: 0
             val cs = cargaSemanal.toIntOrNull() ?: 0
+            val lf = limiteFaltas.toIntOrNull() ?: 0
             when {
                 ct > 0 && cs > 0 && cs > ct -> "Carga horária semanal excede a carga total"
+                ct > 0 && lf > ct -> "Limite de faltas não pode exceder a carga horária total"
                 horarios.any { it.horaFim <= it.horaInicio } -> {
                     val idx = horarios.indexOfFirst { it.horaFim <= it.horaInicio }
                     "Horário ${idx + 1}: fim deve ser após o início"

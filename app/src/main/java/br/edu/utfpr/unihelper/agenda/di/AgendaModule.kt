@@ -12,5 +12,5 @@ import retrofit2.Retrofit
 val agendaModule = module {
     single<AgendaApi> { get<Retrofit>().create(AgendaApi::class.java) }
     single { AgendaRepository(get(), get()) }
-    viewModel { AgendaViewModel(get(), get()) }
+    viewModel { AgendaViewModel(get(), get(), get()) }
 }

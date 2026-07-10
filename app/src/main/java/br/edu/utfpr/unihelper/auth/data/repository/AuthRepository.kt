@@ -7,14 +7,21 @@ import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.remote.LoginRequest
 import br.edu.utfpr.unihelper.auth.data.remote.RefreshRequest
 import br.edu.utfpr.unihelper.auth.data.remote.RegisterRequest
+import br.edu.utfpr.unihelper.core.local.AppDatabase
+import br.edu.utfpr.unihelper.core.local.MediaConfig
 import br.edu.utfpr.unihelper.core.local.TokenStorage
 import br.edu.utfpr.unihelper.core.network.safeApiCall
+import br.edu.utfpr.unihelper.core.sync.AuthEvent
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import br.edu.utfpr.unihelper.dispositivo.data.repository.DispositivoRepository
 
-class   AuthRepository(
+class AuthRepository(
     private val authApi: AuthApi,
     private val tokenStorage: TokenStorage,
-    private val dispositivoRepository: DispositivoRepository
+    private val database: AppDatabase,
+    private val dispositivoRepository: DispositivoRepository,
+    private val authEventBus: AuthEventBus,
+    private val mediaConfig: MediaConfig
 ) {
     suspend fun login(email: String, senha: String): Result<AuthResponse> = safeApiCall {
         val response = authApi.login(LoginRequest(email, senha))
@@ -64,13 +71,19 @@ class   AuthRepository(
         )
     }
 
-    fun logout() {
+    suspend fun logout() {
         tokenStorage.clearAll()
+        database.limparTudo()
+        mediaConfig.clear()
+        authEventBus.emit(AuthEvent.LoggedOut)
     }
 
     suspend fun logoutComApi(): Result<Unit> = safeApiCall {
         authApi.logout()
         tokenStorage.clearAll()
+        database.limparTudo()
+        mediaConfig.clear()
+        authEventBus.emit(AuthEvent.LoggedOut)
     }
 
     suspend fun getMe(): Result<AuthResponse> = safeApiCall {
@@ -106,6 +119,7 @@ class   AuthRepository(
         tokenStorage.saveApelido(response.apelido)
         tokenStorage.saveEmail(response.email)
         tokenStorage.saveCurso(response.curso)
+        authEventBus.emit(AuthEvent.LoggedIn(response))
     }
 
     suspend fun enviarFcmTokenSeExistir() {
