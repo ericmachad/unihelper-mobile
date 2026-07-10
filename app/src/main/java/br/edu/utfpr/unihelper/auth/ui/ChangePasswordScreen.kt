@@ -33,7 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -49,7 +49,7 @@ import org.koin.androidx.compose.koinViewModel
 fun ChangePasswordScreen(
     onNavigateBack: () -> Unit
 ) {
-    val activity = LocalContext.current as ComponentActivity
+    val activity = LocalActivity.current as ComponentActivity
     val authViewModel: AuthViewModel = koinViewModel(viewModelStoreOwner = activity)
     val state by authViewModel.changePasswordState.collectAsState()
 
