@@ -82,6 +82,14 @@ class TokenStorage(context: Context) {
         return prefs.getString(KEY_CURSO, null)?.ifBlank { null }
     }
 
+    fun saveFcmToken(token: String) {
+        prefs.edit().putString(KEY_FCM_TOKEN, token).apply()
+    }
+
+    fun getFcmToken(): String? {
+        return prefs.getString(KEY_FCM_TOKEN, null)
+    }
+
     fun clearAll() {
         memoryToken = null
         prefs.edit().clear().apply()
@@ -96,5 +104,8 @@ class TokenStorage(context: Context) {
         private const val KEY_APELIDO = "apelido"
         private const val KEY_EMAIL = "email"
         private const val KEY_CURSO = "curso"
+        private const val KEY_FCM_TOKEN = "fcm_token"
+
+        var instance: TokenStorage? = null
     }
 }

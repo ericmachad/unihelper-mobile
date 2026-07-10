@@ -9,14 +9,17 @@ import br.edu.utfpr.unihelper.auth.data.remote.RefreshRequest
 import br.edu.utfpr.unihelper.auth.data.remote.RegisterRequest
 import br.edu.utfpr.unihelper.core.local.TokenStorage
 import br.edu.utfpr.unihelper.core.network.safeApiCall
+import br.edu.utfpr.unihelper.dispositivo.data.repository.DispositivoRepository
 
 class   AuthRepository(
     private val authApi: AuthApi,
-    private val tokenStorage: TokenStorage
+    private val tokenStorage: TokenStorage,
+    private val dispositivoRepository: DispositivoRepository
 ) {
     suspend fun login(email: String, senha: String): Result<AuthResponse> = safeApiCall {
         val response = authApi.login(LoginRequest(email, senha))
         persistAuth(response)
+        enviarFcmTokenSeExistir()
         response
     }
 
@@ -31,6 +34,7 @@ class   AuthRepository(
             RegisterRequest(nomeCompleto, apelido, email, senha, curso)
         )
         persistAuth(response)
+        enviarFcmTokenSeExistir()
         response
     }
 
@@ -102,5 +106,10 @@ class   AuthRepository(
         tokenStorage.saveApelido(response.apelido)
         tokenStorage.saveEmail(response.email)
         tokenStorage.saveCurso(response.curso)
+    }
+
+    suspend fun enviarFcmTokenSeExistir() {
+        val fcmToken = tokenStorage.getFcmToken() ?: return
+        runCatching { dispositivoRepository.registrarToken(fcmToken) }
     }
 }

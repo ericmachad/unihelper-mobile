@@ -1,10 +1,13 @@
 package br.edu.utfpr.unihelper.dashboard.ui
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.edu.utfpr.unihelper.agenda.data.repository.AgendaRepository
+import br.edu.utfpr.unihelper.core.local.TokenStorage
 import br.edu.utfpr.unihelper.dashboard.data.DashboardEvent
 import br.edu.utfpr.unihelper.dashboard.data.toDashboardEvent
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,11 +22,15 @@ data class DashboardUiState(
     val selectedDate: Int? = null,
     val eventos: List<DashboardEvent> = emptyList(),
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val fcmToken: String? = null,
+    val isLoadingToken: Boolean = false,
+    val showFcmDialog: Boolean = false
 )
 
 class DashboardViewModel(
-    private val repository: AgendaRepository
+    private val repository: AgendaRepository,
+    private val tokenStorage: TokenStorage
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -79,5 +86,40 @@ class DashboardViewModel(
         val mes = _uiState.value.mesAtual
         val formatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("pt-BR"))
         return mes.atDay(1).format(formatter).replaceFirstChar { it.uppercase() }
+    }
+
+    fun getFcmToken(): String? = tokenStorage.getFcmToken()
+
+    fun showFcmDialog() {
+        val stored = tokenStorage.getFcmToken()
+        if (stored != null) {
+            _uiState.update { it.copy(fcmToken = stored, showFcmDialog = true) }
+        } else {
+            _uiState.update { it.copy(fcmToken = null, isLoadingToken = true, showFcmDialog = true) }
+            try {
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val token = task.result
+                        Log.d(TAG, "FCM Token obtido: $token")
+                        tokenStorage.saveFcmToken(token)
+                        _uiState.update { it.copy(fcmToken = token, isLoadingToken = false) }
+                    } else {
+                        Log.e(TAG, "Falha ao obter FCM Token", task.exception)
+                        _uiState.update { it.copy(fcmToken = null, isLoadingToken = false) }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro ao chamar FirebaseMessaging", e)
+                _uiState.update { it.copy(fcmToken = null, isLoadingToken = false) }
+            }
+        }
+    }
+
+    companion object {
+        private const val TAG = "DashboardVM"
+    }
+
+    fun dismissFcmDialog() {
+        _uiState.update { it.copy(showFcmDialog = false) }
     }
 }
