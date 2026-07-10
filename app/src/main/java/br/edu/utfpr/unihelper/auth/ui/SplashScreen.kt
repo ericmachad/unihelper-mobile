@@ -46,6 +46,7 @@ fun SplashScreen(
     LaunchedEffect(uiState.sessionChecked) {
         if (uiState.sessionChecked) {
             if (uiState.isSessionValid) {
+                viewModel.enviarFcmToken()
                 onNavigateToHome()
             } else {
                 onNavigateToLogin()

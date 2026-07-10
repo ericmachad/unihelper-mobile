@@ -10,7 +10,7 @@ import retrofit2.Retrofit
 val authModule = module {
     single<AuthApi> { get<Retrofit>().create(AuthApi::class.java) }
 
-    single { AuthRepository(get(), get()) }
+    single { AuthRepository(get(), get(), get()) }
 
     viewModel { AuthViewModel(get()) }
 }

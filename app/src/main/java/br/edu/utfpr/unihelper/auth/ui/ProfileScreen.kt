@@ -37,6 +37,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,18 +49,21 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.edu.utfpr.unihelper.notificacao.data.repository.NotificacaoRepository
 import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun ProfileScreen(
     onNavigateToEditProfile: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
     onNavigateToHelp: () -> Unit,
+    onNavigateToNotificacoes: () -> Unit,
     onLogout: () -> Unit
 ) {
     val activity = LocalActivity.current as ComponentActivity
@@ -65,10 +71,17 @@ fun ProfileScreen(
     val authState by authViewModel.uiState.collectAsState()
     val user = authState.user
 
+    val notificacaoRepository: NotificacaoRepository = koinInject()
+    var totalNaoLidas by remember { mutableStateOf(0L) }
+
     LaunchedEffect(Unit) {
         if (user == null) {
             authViewModel.carregarPerfil()
         }
+        notificacaoRepository.listar(apenasNaoLidas = true)
+            .onSuccess { response ->
+                totalNaoLidas = response.totalNaoLidas
+            }
     }
 
     Column(
@@ -103,19 +116,28 @@ fun ProfileScreen(
 
             // Notification bell with badge
             Box(contentAlignment = Alignment.TopEnd) {
-                IconButton(onClick = { /* TODO: notificacoes */ }) {
+                IconButton(onClick = onNavigateToNotificacoes) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Notificações",
                         tint = Primary
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Alert)
-                )
+                if (totalNaoLidas > 0) {
+                    Box(
+                        modifier = Modifier
+                            .background(Alert, CircleShape)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (totalNaoLidas > 99) "99+" else totalNaoLidas.toString(),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
 

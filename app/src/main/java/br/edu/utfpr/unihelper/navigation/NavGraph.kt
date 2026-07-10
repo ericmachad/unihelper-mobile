@@ -14,6 +14,7 @@ import br.edu.utfpr.unihelper.auth.ui.SplashScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaDetalheScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaFormScreen
 import br.edu.utfpr.unihelper.home.ui.HomeScreen
+import br.edu.utfpr.unihelper.notificacao.ui.NotificacaoListScreen
 
 object Routes {
     const val SPLASH = "splash"
@@ -25,6 +26,7 @@ object Routes {
     const val DISCIPLINA_EDITAR = "disciplina/editar/{id}"
     const val EDITAR_PERFIL = "perfil/editar"
     const val ALTERAR_SENHA = "perfil/alterar-senha"
+    const val NOTIFICACOES = "notificacoes"
 }
 
 @Composable
@@ -109,6 +111,11 @@ fun NavGraph(navController: NavHostController) {
             val id = backStackEntry.arguments?.getString("id") ?: return@composable
             DisciplinaFormScreen(
                 disciplinaId = id,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.NOTIFICACOES) {
+            NotificacaoListScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

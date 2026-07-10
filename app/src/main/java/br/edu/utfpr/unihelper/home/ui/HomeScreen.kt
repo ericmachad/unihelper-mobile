@@ -43,6 +43,7 @@ import br.edu.utfpr.unihelper.agenda.ui.AgendaCRUDScreen
 import br.edu.utfpr.unihelper.agenda.ui.AgendaViewModel
 import br.edu.utfpr.unihelper.auth.ui.AuthViewModel
 import br.edu.utfpr.unihelper.auth.ui.ProfileScreen
+import br.edu.utfpr.unihelper.core.push.ForegroundEventBus
 import br.edu.utfpr.unihelper.dashboard.ui.DashboardScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaTabContent
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaViewModel
@@ -103,6 +104,16 @@ fun HomeScreen(
             if (disciplinaState.disciplinas.isNotEmpty()) {
                 snackbarHostState.showSnackbar(msg)
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            ForegroundEventBus.events.forEach { msg ->
+                snackbarHostState.showSnackbar("${msg.title}: ${msg.body}")
+            }
+            ForegroundEventBus.clear()
+            kotlinx.coroutines.delay(1000)
         }
     }
 
@@ -217,6 +228,7 @@ fun HomeScreen(
                     onNavigateToEditProfile = { navController.navigate(Routes.EDITAR_PERFIL) },
                     onNavigateToChangePassword = { navController.navigate(Routes.ALTERAR_SENHA) },
                     onNavigateToHelp = { /* TODO: tela de ajuda */ },
+                    onNavigateToNotificacoes = { navController.navigate(Routes.NOTIFICACOES) },
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate(Routes.LOGIN) {

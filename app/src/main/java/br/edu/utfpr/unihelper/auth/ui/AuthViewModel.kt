@@ -152,6 +152,12 @@ class AuthViewModel(
         _changePasswordState.value = ChangePasswordUiState()
     }
 
+    fun enviarFcmToken() {
+        viewModelScope.launch {
+            authRepository.enviarFcmTokenSeExistir()
+        }
+    }
+
     fun resetState() {
         _uiState.value = AuthUiState()
     }

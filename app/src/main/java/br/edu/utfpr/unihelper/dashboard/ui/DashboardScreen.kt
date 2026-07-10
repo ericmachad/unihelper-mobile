@@ -1,5 +1,6 @@
 package br.edu.utfpr.unihelper.dashboard.ui
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -20,6 +21,10 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -34,10 +39,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +66,41 @@ import java.time.YearMonth
 @Composable
 fun DashboardScreen(viewModel: DashboardViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    if (uiState.showFcmDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissFcmDialog() },
+            title = { Text("FCM Token", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    if (uiState.isLoadingToken) {
+                        Text("Buscando token...", color = TextGray)
+                    } else if (uiState.fcmToken != null) {
+                        Text(
+                            text = uiState.fcmToken!!,
+                            fontSize = 11.sp,
+                            color = Primary
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FCM Token", uiState.fcmToken))
+                        }) {
+                            Text("Copiar", color = Accent)
+                        }
+                    } else {
+                        Text("Nenhum token encontrado", color = TextGray)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissFcmDialog() }) {
+                    Text("Fechar")
+                }
+            }
+        )
+    }
 
     if (uiState.isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -154,6 +196,17 @@ fun DashboardScreen(viewModel: DashboardViewModel = koinViewModel()) {
                         }
                     }
                 }
+            }
+        }
+
+        item {
+            Button(
+                onClick = { viewModel.showFcmDialog() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary)
+            ) {
+                Text("🔑 Ver FCM Token", color = Surface)
             }
         }
 
