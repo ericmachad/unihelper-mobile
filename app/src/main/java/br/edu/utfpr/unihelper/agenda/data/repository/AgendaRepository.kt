@@ -1,41 +1,121 @@
 package br.edu.utfpr.unihelper.agenda.data.repository
 
+import br.edu.utfpr.unihelper.agenda.data.local.EventoDao
+import br.edu.utfpr.unihelper.agenda.data.local.EventoEntity
 import br.edu.utfpr.unihelper.agenda.data.remote.AgendaApi
 import br.edu.utfpr.unihelper.agenda.data.remote.AgendaItemResponse
 import br.edu.utfpr.unihelper.agenda.data.remote.EventoRequest
 import br.edu.utfpr.unihelper.agenda.data.remote.EventoResponse
+import br.edu.utfpr.unihelper.core.local.SyncStatus
+import br.edu.utfpr.unihelper.core.network.safeApiCall
 
-class AgendaRepository(private val api: AgendaApi) {
-
+class AgendaRepository(
+    private val api: AgendaApi,
+    private val dao: EventoDao
+) {
     suspend fun listar(dataInicio: String, dataFim: String): Result<List<AgendaItemResponse>> {
-        return try {
-            Result.success(api.listar(dataInicio, dataFim))
-        } catch (e: Exception) {
-            Result.failure(e)
+        return safeApiCall { api.listar(dataInicio, dataFim) }.onSuccess { items ->
+            dao.deletarPorPeriodo(dataInicio, dataFim)
+            dao.inserirTodas(items.map { it.toEntity() })
         }
     }
 
     suspend fun criarEvento(request: EventoRequest): Result<EventoResponse> {
-        return try {
-            Result.success(api.criarEvento(request))
-        } catch (e: Exception) {
-            Result.failure(e)
+        val localId = java.util.UUID.randomUUID().toString()
+        val entity = EventoEntity(
+            id = localId,
+            titulo = request.titulo,
+            tipo = request.tipo,
+            dataHoraInicio = request.dataHoraInicio,
+            dataHoraFim = request.dataHoraFim,
+            peso = request.peso,
+            disciplinaId = request.disciplinaId,
+            syncStatus = SyncStatus.PENDING_CREATE
+        )
+        dao.inserir(entity)
+        return safeApiCall { api.criarEvento(request) }.onSuccess { response ->
+            dao.deletarPorId(localId)
+            dao.inserir(response.toEntity())
         }
     }
 
     suspend fun atualizarEvento(id: String, request: EventoRequest): Result<EventoResponse> {
-        return try {
-            Result.success(api.atualizarEvento(id, request))
-        } catch (e: Exception) {
-            Result.failure(e)
+        dao.atualizarStatus(id, SyncStatus.PENDING_UPDATE.name)
+        return safeApiCall { api.atualizarEvento(id, request) }.onSuccess { response ->
+            dao.inserir(response.toEntity())
         }
     }
 
     suspend fun excluirEvento(id: String): Result<Unit> {
-        return try {
-            Result.success(api.excluirEvento(id))
-        } catch (e: Exception) {
-            Result.failure(e)
+        dao.atualizarStatus(id, SyncStatus.PENDING_DELETE.name)
+        return safeApiCall { api.excluirEvento(id) }.onSuccess {
+            dao.deletarPorId(id)
+        }
+    }
+
+    suspend fun syncPending() {
+        val pendentes = dao.listarPendentes()
+        for (evento in pendentes) {
+            when (evento.syncStatus) {
+                SyncStatus.PENDING_CREATE -> {
+                    val request = EventoRequest(
+                        titulo = evento.titulo,
+                        tipo = evento.tipo,
+                        dataHoraInicio = evento.dataHoraInicio,
+                        dataHoraFim = evento.dataHoraFim,
+                        peso = evento.peso,
+                        disciplinaId = evento.disciplinaId
+                    )
+                    safeApiCall { api.criarEvento(request) }.onSuccess { response ->
+                        dao.deletarPorId(evento.id)
+                        dao.inserir(response.toEntity())
+                    }
+                }
+                SyncStatus.PENDING_UPDATE -> {
+                    val request = EventoRequest(
+                        titulo = evento.titulo,
+                        tipo = evento.tipo,
+                        dataHoraInicio = evento.dataHoraInicio,
+                        dataHoraFim = evento.dataHoraFim,
+                        peso = evento.peso,
+                        disciplinaId = evento.disciplinaId
+                    )
+                    safeApiCall { api.atualizarEvento(evento.id, request) }.onSuccess {
+                        dao.atualizarStatus(evento.id, SyncStatus.SYNCED.name)
+                    }
+                }
+                SyncStatus.PENDING_DELETE -> {
+                    safeApiCall { api.excluirEvento(evento.id) }.onSuccess {
+                        dao.deletarPorId(evento.id)
+                    }
+                }
+                else -> {}
+            }
         }
     }
 }
+
+private fun AgendaItemResponse.toEntity() = EventoEntity(
+    id = id,
+    titulo = titulo,
+    tipo = tipoEvento,
+    dataHoraInicio = dataHora,
+    dataHoraFim = dataHoraFim ?: "",
+    peso = peso,
+    disciplinaId = disciplinaId,
+    disciplinaNome = disciplinaNome,
+    syncStatus = SyncStatus.SYNCED
+)
+
+private fun EventoResponse.toEntity() = EventoEntity(
+    id = id,
+    titulo = titulo,
+    tipo = tipo,
+    dataHoraInicio = dataHoraInicio,
+    dataHoraFim = dataHoraFim,
+    peso = peso,
+    valor = valor,
+    disciplinaId = disciplinaId,
+    disciplinaNome = disciplinaNome,
+    syncStatus = SyncStatus.SYNCED
+)

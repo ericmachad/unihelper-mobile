@@ -1,5 +1,7 @@
 package br.edu.utfpr.unihelper.disciplina.data.repository
 
+import br.edu.utfpr.unihelper.disciplina.data.local.DisciplinaDao
+import br.edu.utfpr.unihelper.disciplina.data.local.HorarioDao
 import br.edu.utfpr.unihelper.disciplina.data.remote.AlterarFaltasRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarDisciplinaRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarHorarioRequest
@@ -12,12 +14,10 @@ import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import retrofit2.Response
 
 class DisciplinaRepositoryTest {
 
@@ -26,6 +26,12 @@ class DisciplinaRepositoryTest {
 
     @MockK
     private lateinit var api: DisciplinaApi
+
+    @MockK(relaxUnitFun = true)
+    private lateinit var disciplinaDao: DisciplinaDao
+
+    @MockK(relaxUnitFun = true)
+    private lateinit var horarioDao: HorarioDao
 
     private lateinit var repository: DisciplinaRepository
 
@@ -49,7 +55,7 @@ class DisciplinaRepositoryTest {
 
     @Before
     fun setup() {
-        repository = DisciplinaRepository(api)
+        repository = DisciplinaRepository(api, disciplinaDao, horarioDao)
     }
 
     @Test
@@ -68,6 +74,7 @@ class DisciplinaRepositoryTest {
     @Test
     fun `buscarPorId returns disciplina`() = runTest {
         coEvery { api.buscarPorId("uuid") } returns mockDisciplina
+        coEvery { disciplinaDao.buscarPorId("uuid") } returns null
 
         val result = repository.buscarPorId("uuid")
 
