@@ -32,3 +32,16 @@ data class AuthResponse(
 data class RefreshRequest(
     val refreshToken: String
 )
+
+@Serializable
+data class AtualizarPerfilRequest(
+    val nomeCompleto: String? = null,
+    val apelido: String? = null,
+    val curso: String? = null
+)
+
+@Serializable
+data class AlterarSenhaRequest(
+    val senhaAtual: String,
+    val novaSenha: String
+)

@@ -6,6 +6,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import br.edu.utfpr.unihelper.auth.ui.ChangePasswordScreen
+import br.edu.utfpr.unihelper.auth.ui.EditProfileScreen
 import br.edu.utfpr.unihelper.auth.ui.LoginScreen
 import br.edu.utfpr.unihelper.auth.ui.RegisterScreen
 import br.edu.utfpr.unihelper.auth.ui.SplashScreen
@@ -21,6 +23,8 @@ object Routes {
     const val DISCIPLINA_CRIAR = "disciplina/criar"
     const val DISCIPLINA_DETALHE = "disciplina/{id}"
     const val DISCIPLINA_EDITAR = "disciplina/editar/{id}"
+    const val EDITAR_PERFIL = "perfil/editar"
+    const val ALTERAR_SENHA = "perfil/alterar-senha"
 }
 
 @Composable
@@ -69,6 +73,16 @@ fun NavGraph(navController: NavHostController) {
         }
         composable(Routes.HOME) {
             HomeScreen(navController = navController)
+        }
+        composable(Routes.EDITAR_PERFIL) {
+            EditProfileScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.ALTERAR_SENHA) {
+            ChangePasswordScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         composable(Routes.DISCIPLINA_CRIAR) {
             DisciplinaFormScreen(

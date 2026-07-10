@@ -4,7 +4,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -43,6 +42,7 @@ import androidx.navigation.NavHostController
 import br.edu.utfpr.unihelper.agenda.ui.AgendaCRUDScreen
 import br.edu.utfpr.unihelper.agenda.ui.AgendaViewModel
 import br.edu.utfpr.unihelper.auth.ui.AuthViewModel
+import br.edu.utfpr.unihelper.auth.ui.ProfileScreen
 import br.edu.utfpr.unihelper.dashboard.ui.DashboardScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaTabContent
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaViewModel
@@ -213,47 +213,20 @@ fun HomeScreen(
                     disciplinas = disciplinaState.disciplinas,
                     isLoadingDisciplinas = disciplinaState.isLoading
                 )
-                4 -> PerfilTab(navController = navController)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PerfilTab(navController: NavHostController) {
-    val authViewModel: AuthViewModel = koinViewModel()
-    val authState by authViewModel.uiState.collectAsState()
-    val user = authState.user
-
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = user?.nomeCompleto ?: "Usuário",
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = user?.email ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextGray
-            )
-
-            androidx.compose.material3.Button(
-                onClick = {
-                    authViewModel.logout()
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.HOME) { inclusive = true }
+                4 -> ProfileScreen(
+                    onNavigateToEditProfile = { navController.navigate(Routes.EDITAR_PERFIL) },
+                    onNavigateToChangePassword = { navController.navigate(Routes.ALTERAR_SENHA) },
+                    onNavigateToHelp = { /* TODO: tela de ajuda */ },
+                    onLogout = {
+                        authViewModel.logout()
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.HOME) { inclusive = true }
+                        }
                     }
-                },
-                modifier = Modifier.padding(top = 32.dp),
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = androidx.compose.ui.graphics.Color(0xFFEF4444)
                 )
-            ) {
-                Text("Sair")
             }
         }
     }
 }
+
+
