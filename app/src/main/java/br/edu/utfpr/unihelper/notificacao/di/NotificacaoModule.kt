@@ -1,5 +1,6 @@
 package br.edu.utfpr.unihelper.notificacao.di
 
+import br.edu.utfpr.unihelper.notificacao.data.local.NotificacaoDao
 import br.edu.utfpr.unihelper.notificacao.data.remote.NotificacaoApi
 import br.edu.utfpr.unihelper.notificacao.data.repository.NotificacaoRepository
 import br.edu.utfpr.unihelper.notificacao.ui.NotificacaoViewModel
@@ -9,6 +10,6 @@ import retrofit2.Retrofit
 
 val notificacaoModule = module {
     single<NotificacaoApi> { get<Retrofit>().create(NotificacaoApi::class.java) }
-    single { NotificacaoRepository(get()) }
+    single { NotificacaoRepository(get(), get()) }
     viewModel { NotificacaoViewModel(get()) }
 }

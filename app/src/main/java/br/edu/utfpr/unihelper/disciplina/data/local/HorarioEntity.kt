@@ -1,18 +1,16 @@
-package br.edu.utfpr.unihelper.avaliacao.data.local
+package br.edu.utfpr.unihelper.disciplina.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import br.edu.utfpr.unihelper.core.local.SyncStatus
 
-@Entity(tableName = "avaliacoes")
-data class AvaliacaoEntity(
+@Entity(tableName = "horarios")
+data class HorarioEntity(
     @PrimaryKey
     val id: String,
-    val descricao: String,
-    val peso: Float,
-    val data: String,
-    val valor: Float? = null,
-    val tipo: String = "PROVA",
+    val diaSemana: Int,
+    val horaInicio: String,
+    val horaFim: String,
     val disciplinaId: String,
     val syncStatus: SyncStatus = SyncStatus.SYNCED,
     val syncUpdatedAt: Long = System.currentTimeMillis()

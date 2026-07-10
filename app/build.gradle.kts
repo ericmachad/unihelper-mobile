@@ -106,4 +106,7 @@ dependencies {
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
 }

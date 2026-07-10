@@ -4,6 +4,7 @@ import br.edu.utfpr.unihelper.auth.data.remote.AuthApi
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.remote.RefreshRequest
 import br.edu.utfpr.unihelper.core.local.TokenStorage
+import br.edu.utfpr.unihelper.dispositivo.data.repository.DispositivoRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -32,6 +33,9 @@ class AuthRepositoryTest {
     @MockK
     private lateinit var tokenStorage: TokenStorage
 
+    @MockK
+    private lateinit var dispositivoRepository: DispositivoRepository
+
     private lateinit var repository: AuthRepository
 
     private val mockResponse = AuthResponse(
@@ -46,7 +50,7 @@ class AuthRepositoryTest {
 
     @org.junit.Before
     fun setup() {
-        repository = AuthRepository(authApi, tokenStorage)
+        repository = AuthRepository(authApi, tokenStorage, dispositivoRepository)
         every { tokenStorage.saveToken(any()) } just runs
         every { tokenStorage.saveRefreshToken(any()) } just runs
         every { tokenStorage.saveIdUsuario(any()) } just runs
@@ -54,6 +58,7 @@ class AuthRepositoryTest {
         every { tokenStorage.saveApelido(any()) } just runs
         every { tokenStorage.saveEmail(any()) } just runs
         every { tokenStorage.saveCurso(any()) } just runs
+        every { tokenStorage.getFcmToken() } returns null
     }
 
     @Test

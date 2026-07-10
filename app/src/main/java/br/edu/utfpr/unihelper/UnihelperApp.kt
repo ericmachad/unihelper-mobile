@@ -10,7 +10,9 @@ import br.edu.utfpr.unihelper.dashboard.di.dashboardModule
 import br.edu.utfpr.unihelper.avaliacao.di.avaliacaoModule
 import br.edu.utfpr.unihelper.core.di.databaseModule
 import br.edu.utfpr.unihelper.core.di.networkModule
+import br.edu.utfpr.unihelper.core.di.syncModule
 import br.edu.utfpr.unihelper.core.local.TokenStorage
+import br.edu.utfpr.unihelper.core.sync.SyncWorker
 import br.edu.utfpr.unihelper.disciplina.di.disciplinaModule
 import br.edu.utfpr.unihelper.dispositivo.di.dispositivoModule
 import br.edu.utfpr.unihelper.documento.di.documentoModule
@@ -26,10 +28,12 @@ class UnihelperApp : Application() {
         FirebaseApp.initializeApp(this)
         startKoin {
             androidContext(this@UnihelperApp)
-            modules(networkModule, databaseModule, authModule, disciplinaModule, avaliacaoModule, agendaModule, dashboardModule, documentoModule, notaModule, notificacaoModule, dispositivoModule)
+            modules(networkModule, databaseModule, syncModule, authModule, disciplinaModule, avaliacaoModule, agendaModule, dashboardModule, documentoModule, notaModule, notificacaoModule, dispositivoModule)
         }
 
         TokenStorage.instance = org.koin.core.context.GlobalContext.get().get()
+
+        SyncWorker.agendar(this)
 
         migrarFcmFallback()
 

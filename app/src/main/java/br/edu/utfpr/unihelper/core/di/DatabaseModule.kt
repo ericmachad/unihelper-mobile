@@ -15,5 +15,12 @@ val databaseModule = module {
         ).fallbackToDestructiveMigration().build()
     }
 
+    single { get<AppDatabase>().disciplinaDao() }
+    single { get<AppDatabase>().horarioDao() }
+    single { get<AppDatabase>().eventoDao() }
+    single { get<AppDatabase>().notificacaoDao() }
+    single { get<AppDatabase>().documentoDao() }
+    single { get<AppDatabase>().usuarioDao() }
+
     single { MediaConfig(androidContext()) }
 }

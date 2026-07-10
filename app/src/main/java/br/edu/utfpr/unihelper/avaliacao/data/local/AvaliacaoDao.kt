@@ -20,6 +20,9 @@ interface AvaliacaoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun inserir(avaliacao: AvaliacaoEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun inserirTodas(avaliacoes: List<AvaliacaoEntity>)
+
     @Update
     suspend fun atualizar(avaliacao: AvaliacaoEntity)
 
@@ -31,4 +34,13 @@ interface AvaliacaoDao {
 
     @Query("UPDATE avaliacoes SET valor = :valor WHERE id = :id")
     suspend fun lancarNota(id: String, valor: Float)
+
+    @Query("DELETE FROM avaliacoes WHERE disciplinaId = :disciplinaId")
+    suspend fun deletarPorDisciplina(disciplinaId: String)
+
+    @Query("SELECT * FROM avaliacoes WHERE syncStatus != 'SYNCED'")
+    suspend fun listarPendentes(): List<AvaliacaoEntity>
+
+    @Query("UPDATE avaliacoes SET syncStatus = :status, syncUpdatedAt = :updatedAt WHERE id = :id")
+    suspend fun atualizarStatus(id: String, status: String, updatedAt: Long = System.currentTimeMillis())
 }
