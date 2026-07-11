@@ -25,7 +25,8 @@ object HoraMinutoSerializer : KSerializer<String> {
     override fun serialize(encoder: Encoder, value: String) = encoder.encodeString(value)
     override fun deserialize(decoder: Decoder): String {
         val raw = decoder.decodeString()
-        return raw.substringBeforeLast(":").ifEmpty { raw }
+        return if (raw.count { it == ':' } >= 2) raw.substringBeforeLast(":")
+        else raw
     }
 }
 

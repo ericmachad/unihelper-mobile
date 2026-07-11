@@ -4,6 +4,7 @@ import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.repository.AuthRepository
 import br.edu.utfpr.unihelper.core.sync.AuthEvent
 import br.edu.utfpr.unihelper.core.sync.AuthEventBus
+import br.edu.utfpr.unihelper.core.ui.UiEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -15,6 +16,7 @@ import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -84,13 +86,21 @@ class AuthViewModelTest {
     fun `login emits error on failure`() = runTest(testDispatcher) {
         coEvery { repository.login(any(), any()) } returns Result.failure(Exception("Email ou senha inválidos"))
 
+        val events = mutableListOf<UiEvent>()
+        val collectorJob = launch {
+            viewModel.uiEvent.collect { events.add(it) }
+        }
+
         viewModel.login("joao@utfpr.edu.br", "senha_errada")
         advanceUntilIdle()
+        collectorJob.cancel()
 
         val state = viewModel.uiState.value
         assertFalse(state.isSuccess)
-        assertEquals("Email ou senha inválidos", state.error)
         assertNull(state.user)
+        assertTrue(events.isNotEmpty())
+        val errorDialog = events.first() as UiEvent.ErrorDialog
+        assertEquals("Email ou senha inválidos", errorDialog.message)
     }
 
     @Test
@@ -109,11 +119,21 @@ class AuthViewModelTest {
     fun `register emits error on failure`() = runTest(testDispatcher) {
         coEvery { repository.register(any(), any(), any(), any(), any()) } returns Result.failure(Exception("Email já cadastrado"))
 
+        val events = mutableListOf<UiEvent>()
+        val collectorJob = launch {
+            viewModel.uiEvent.collect { events.add(it) }
+        }
+
         viewModel.register("João", null, "existente@email.com", "123456", null)
         advanceUntilIdle()
+        collectorJob.cancel()
 
         val state = viewModel.uiState.value
-        assertEquals("Email já cadastrado", state.error)
+        assertFalse(state.isSuccess)
+        assertNull(state.user)
+        assertTrue(events.isNotEmpty())
+        val errorDialog = events.first() as UiEvent.ErrorDialog
+        assertEquals("Email já cadastrado", errorDialog.message)
     }
 
     @Test
@@ -147,8 +167,14 @@ class AuthViewModelTest {
         coEvery { repository.refreshSession() } returns Result.failure(Exception("Sessão expirada"))
         coEvery { repository.logout() } just runs
 
+        val events = mutableListOf<UiEvent>()
+        val collectorJob = launch {
+            viewModel.uiEvent.collect { events.add(it) }
+        }
+
         viewModel.checkSession()
         advanceUntilIdle()
+        collectorJob.cancel()
 
         coVerify { repository.logout() }
         coVerify { repository.refreshSession() }
@@ -156,7 +182,9 @@ class AuthViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state.sessionChecked)
         assertFalse(state.isSessionValid)
-        assertEquals("Sessão expirada", state.error)
+        assertTrue(events.isNotEmpty())
+        val errorDialog = events.first() as UiEvent.ErrorDialog
+        assertEquals("Sessão expirada", errorDialog.message)
     }
 
     @Test

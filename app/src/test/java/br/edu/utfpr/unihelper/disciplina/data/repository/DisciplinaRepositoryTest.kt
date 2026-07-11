@@ -63,6 +63,7 @@ class DisciplinaRepositoryTest {
 
     @Before
     fun setup() {
+        coEvery { disciplinaDao.listarPendentes() } returns emptyList()
         repository = DisciplinaRepository(api, disciplinaDao, horarioDao, eventoDao, syncScheduler)
     }
 
