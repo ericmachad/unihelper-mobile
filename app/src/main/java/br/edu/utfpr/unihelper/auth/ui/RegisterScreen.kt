@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -53,7 +54,7 @@ private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}
 @Composable
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
-    onRegisterSuccess: () -> Unit
+    onRegisterSuccess: (email: String) -> Unit
 ) {
     val viewModel: AuthViewModel = org.koin.androidx.compose.koinViewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -69,9 +70,9 @@ fun RegisterScreen(
     val emailTouched = remember { mutableStateOf(false) }
     val senhaTouched = remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.isSuccess) {
-        if (uiState.isSuccess) {
-            onRegisterSuccess()
+    LaunchedEffect(uiState.registeredEmail) {
+        uiState.registeredEmail?.let { email ->
+            onRegisterSuccess(email)
         }
     }
 
@@ -115,7 +116,7 @@ fun RegisterScreen(
                 false
             }
             senha.length < 6 -> {
-                fieldErrors["senha"] = "Mínimo 6 caracteres"
+                fieldErrors["senha"] = "Mínimo 8 caracteres"
                 false
             }
             else -> {
@@ -155,6 +156,7 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
                 .imePadding()
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.Center
@@ -267,7 +269,7 @@ fun RegisterScreen(
                 value = senha,
                 onValueChange = { senha = it; fieldErrors.remove("senha") },
                 label = { Text("Senha *") },
-                placeholder = { Text("Mínimo 6 caracteres") },
+                placeholder = { Text("Mínimo 8 caracteres") },
                 isError = fieldErrors["senha"] != null,
                 supportingText = fieldErrors["senha"]?.let { { Text(it) } },
                 modifier = Modifier

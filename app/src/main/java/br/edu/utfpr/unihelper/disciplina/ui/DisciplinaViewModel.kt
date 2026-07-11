@@ -194,6 +194,10 @@ class DisciplinaViewModel(
     fun limparEdicao() {
         _disciplinaEditando.value = null
     }
+
+    fun limparFormState() {
+        _formState.value = FormUiState()
+    }
 }
 
 data class DeleteUiState(

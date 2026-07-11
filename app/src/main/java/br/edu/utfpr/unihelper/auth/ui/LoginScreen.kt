@@ -2,6 +2,7 @@ package br.edu.utfpr.unihelper.auth.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,7 +71,9 @@ private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit = {},
+    onNavigateToConfirmEmail: (String) -> Unit = {}
 ) {
     val viewModel: AuthViewModel = org.koin.androidx.compose.koinViewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -246,7 +249,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             TextButton(
-                onClick = { /* TODO: recuperação de senha */ },
+                onClick = onNavigateToForgotPassword,
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text(
@@ -351,6 +354,13 @@ fun LoginScreen(
             }
 
             Spacer(modifier = Modifier.height(40.dp))
+        }
+
+        LaunchedEffect(uiState.pendingConfirmationEmail) {
+            uiState.pendingConfirmationEmail?.let { email ->
+                viewModel.resetState()
+                onNavigateToConfirmEmail(email)
+            }
         }
 
         if (uiState.isLoading) {

@@ -15,8 +15,16 @@ interface DisciplinaDao {
     @Query("SELECT * FROM disciplinas WHERE syncStatus != 'PENDING_DELETE' ORDER BY nome ASC")
     fun listar(): Flow<List<DisciplinaEntity>>
 
+    @Transaction
+    @Query("SELECT * FROM disciplinas WHERE syncStatus != 'PENDING_DELETE' ORDER BY nome ASC")
+    fun listarComHorarios(): Flow<List<DisciplinaComHorarios>>
+
     @Query("SELECT * FROM disciplinas WHERE id = :id")
     suspend fun buscarPorId(id: String): DisciplinaEntity?
+
+    @Transaction
+    @Query("SELECT * FROM disciplinas WHERE id = :id")
+    suspend fun buscarComHorarios(id: String): DisciplinaComHorarios?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun inserir(disciplina: DisciplinaEntity)

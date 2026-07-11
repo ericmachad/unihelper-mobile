@@ -200,7 +200,8 @@ class AgendaViewModel(
                             carregarProximos()
                         },
                         onFailure = { error ->
-                            if (error is ApiException && error.status == 0) {
+                            val salvoOffline = error is ApiException && (error.status == 0 || error.status >= 500)
+                            if (salvoOffline) {
                                 fecharEventoBottomSheet()
                                 _uiEvent.tryEmit(UiEvent.SuccessDialog("Evento atualizado"))
                                 carregarProximos()
@@ -226,7 +227,8 @@ class AgendaViewModel(
                             carregarProximos()
                         },
                         onFailure = { error ->
-                            if (error is ApiException && error.status == 0) {
+                            val salvoOffline = error is ApiException && (error.status == 0 || error.status >= 500)
+                            if (salvoOffline) {
                                 fecharEventoBottomSheet()
                                 _uiEvent.tryEmit(UiEvent.SuccessDialog("Evento criado"))
                                 carregarProximos()
@@ -259,7 +261,8 @@ class AgendaViewModel(
                     },
                     onFailure = { error ->
                         cancelarExcluir()
-                        if (error is ApiException && error.status == 0) {
+                        val salvoOffline = error is ApiException && (error.status == 0 || error.status >= 500)
+                        if (salvoOffline) {
                             _uiEvent.tryEmit(UiEvent.SuccessDialog("Evento excluído"))
                             carregarProximos()
                         } else {

@@ -43,6 +43,7 @@ data class DisciplinaResponse(
     val id: String,
     val nome: String,
     val professor: String? = null,
+    val bloco: String? = null,
     val cargaHorariaTotal: Int,
     val cargaHorariaSemanal: Int,
     val limiteFaltas: Int,
@@ -63,6 +64,7 @@ data class CriarHorarioRequest(
 data class CriarDisciplinaRequest(
     val nome: String,
     val professor: String? = null,
+    val bloco: String? = null,
     val cargaHorariaTotal: Int,
     val cargaHorariaSemanal: Int,
     val limiteFaltas: Int,

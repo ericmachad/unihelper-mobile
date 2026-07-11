@@ -1,33 +1,25 @@
 package br.edu.utfpr.unihelper.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import br.edu.utfpr.unihelper.auth.ui.ChangePasswordScreen
+import br.edu.utfpr.unihelper.auth.ui.ConfirmEmailScreen
 import br.edu.utfpr.unihelper.auth.ui.EditProfileScreen
+import br.edu.utfpr.unihelper.auth.ui.ForgotPasswordScreen
 import br.edu.utfpr.unihelper.auth.ui.LoginScreen
 import br.edu.utfpr.unihelper.auth.ui.RegisterScreen
+import br.edu.utfpr.unihelper.auth.ui.ResetPasswordScreen
 import br.edu.utfpr.unihelper.auth.ui.SplashScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaDetalheScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaFormScreen
 import br.edu.utfpr.unihelper.home.ui.HomeScreen
 import br.edu.utfpr.unihelper.notificacao.ui.NotificacaoListScreen
-
-object Routes {
-    const val SPLASH = "splash"
-    const val LOGIN = "login"
-    const val REGISTER = "register"
-    const val HOME = "home"
-    const val DISCIPLINA_CRIAR = "disciplina/criar"
-    const val DISCIPLINA_DETALHE = "disciplina/{id}"
-    const val DISCIPLINA_EDITAR = "disciplina/editar/{id}"
-    const val EDITAR_PERFIL = "perfil/editar"
-    const val ALTERAR_SENHA = "perfil/alterar-senha"
-    const val NOTIFICACOES = "notificacoes"
-}
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -46,6 +38,11 @@ fun NavGraph(navController: NavHostController) {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
+                },
+                onNavigateToConfirmEmail = { email ->
+                    navController.navigate("confirmar-email/${Uri.encode(email)}") {
+                        popUpTo(Routes.SPLASH) { inclusive = true }
+                    }
                 }
             )
         }
@@ -58,6 +55,14 @@ fun NavGraph(navController: NavHostController) {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                },
+                onNavigateToForgotPassword = {
+                    navController.navigate(Routes.FORGOT_PASSWORD)
+                },
+                onNavigateToConfirmEmail = { email ->
+                    navController.navigate("confirmar-email/${Uri.encode(email)}") {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
                 }
             )
         }
@@ -66,8 +71,8 @@ fun NavGraph(navController: NavHostController) {
                 onNavigateToLogin = {
                     navController.popBackStack()
                 },
-                onRegisterSuccess = {
-                    navController.navigate(Routes.HOME) {
+                onRegisterSuccess = { email ->
+                    navController.navigate("confirmar-email/${Uri.encode(email)}") {
                         popUpTo(Routes.REGISTER) { inclusive = true }
                     }
                 }
@@ -114,6 +119,53 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.NOTIFICACOES) {
             NotificacaoListScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            "confirmar-email/{email}",
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            ConfirmEmailScreen(
+                email = email,
+                onBackToLogin = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onConfirmSuccess = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.FORGOT_PASSWORD) {
+            ForgotPasswordScreen(
+                onBackToLogin = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            "redefinir-senha/{token}",
+            arguments = listOf(navArgument("token") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "unihelper://redefinir-senha/{token}" })
+        ) { backStackEntry ->
+            val token = backStackEntry.arguments?.getString("token") ?: ""
+            ResetPasswordScreen(
+                token = token,
+                onSuccess = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onBackToLogin = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
     }

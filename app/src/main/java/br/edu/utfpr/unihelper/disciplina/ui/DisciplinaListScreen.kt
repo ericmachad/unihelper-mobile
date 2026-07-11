@@ -51,12 +51,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
-import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Background
 import br.edu.utfpr.unihelper.ui.theme.Border
 import br.edu.utfpr.unihelper.ui.theme.Primary
-import br.edu.utfpr.unihelper.ui.theme.Success
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 
@@ -243,9 +241,9 @@ private fun DisciplinaCard(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                StatusBadge(
-                    faltasCriticas = disciplina.faltasCriticas
-                )
+                disciplina.bloco?.let { bloco ->
+                    BlocoChip(text = bloco)
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -348,23 +346,18 @@ private fun DisciplinaCard(
 }
 
 @Composable
-private fun StatusBadge(faltasCriticas: Boolean) {
-    val (text, color) = if (faltasCriticas) {
-        "Atenção" to Alert
-    } else {
-        "Cursando" to Accent
-    }
+private fun BlocoChip(text: String) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(color.copy(alpha = 0.12f))
+            .background(Primary.copy(alpha = 0.12f))
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(
             text = text,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
-            color = color
+            color = Primary
         )
     }
 }

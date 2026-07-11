@@ -119,7 +119,8 @@ class EventosDisciplinaViewModel(
                     _uiEvent.tryEmit(UiEvent.SuccessDialog("Nota lançada com sucesso"))
                 }
                 .onFailure { error ->
-                    if (error is ApiException && error.status == 0) {
+                    val salvoOffline = error is ApiException && (error.status == 0 || error.status >= 500)
+                    if (salvoOffline) {
                         fecharBottomSheet()
                         _uiEvent.tryEmit(UiEvent.SuccessDialog("Nota lançada com sucesso"))
                     } else {
@@ -168,7 +169,8 @@ class EventosDisciplinaViewModel(
                         _uiEvent.tryEmit(UiEvent.SuccessDialog("Avaliação atualizada"))
                     }
                     .onFailure { error ->
-                        if (error is ApiException && error.status == 0) {
+                        val salvoOffline = error is ApiException && (error.status == 0 || error.status >= 500)
+                        if (salvoOffline) {
                             fecharDialog()
                             _uiEvent.tryEmit(UiEvent.SuccessDialog("Avaliação atualizada"))
                         } else {
@@ -191,7 +193,8 @@ class EventosDisciplinaViewModel(
                         _uiEvent.tryEmit(UiEvent.SuccessDialog("Avaliação criada"))
                     }
                     .onFailure { error ->
-                        if (error is ApiException && error.status == 0) {
+                        val salvoOffline = error is ApiException && (error.status == 0 || error.status >= 500)
+                        if (salvoOffline) {
                             fecharDialog()
                             _uiEvent.tryEmit(UiEvent.SuccessDialog("Avaliação criada"))
                         } else {
@@ -223,7 +226,8 @@ class EventosDisciplinaViewModel(
                     _uiEvent.tryEmit(UiEvent.SuccessDialog("Avaliação excluída"))
                 }
                 .onFailure { error ->
-                    if (error is ApiException && error.status == 0) {
+                    val salvoOffline = error is ApiException && (error.status == 0 || error.status >= 500)
+                    if (salvoOffline) {
                         fecharDialogDelete()
                         _uiEvent.tryEmit(UiEvent.SuccessDialog("Avaliação excluída"))
                     } else {

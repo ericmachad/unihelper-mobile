@@ -30,7 +30,7 @@ class NotificacaoRepository(
 
     suspend fun marcarTodasComoLidas(): Result<Unit> {
         dao.marcarTodasComoLidas()
-        return safeApiCall { api.marcarTodasComoLidas() }.map { }
+        return safeApiCall { api.marcarTodasComoLidas() }
     }
 }
 

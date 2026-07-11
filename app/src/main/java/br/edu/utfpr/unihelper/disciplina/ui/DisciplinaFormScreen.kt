@@ -61,6 +61,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.SideEffect
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
@@ -106,6 +107,7 @@ fun DisciplinaFormScreen(
 
     var nome by remember { mutableStateOf("") }
     var professor by remember { mutableStateOf("") }
+    var bloco by remember { mutableStateOf("") }
     var cargaTotal by remember { mutableStateOf("") }
     var cargaSemanal by remember { mutableStateOf("") }
     var limiteFaltas by remember { mutableStateOf("") }
@@ -121,6 +123,10 @@ fun DisciplinaFormScreen(
 
     val isEditing = disciplinaId != null
 
+    SideEffect {
+        viewModel.limparFormState()
+    }
+
     LaunchedEffect(disciplinaId) {
         if (disciplinaId != null) {
             viewModel.carregar(disciplinaId)
@@ -133,6 +139,7 @@ fun DisciplinaFormScreen(
         disciplinaEditando?.let { d ->
             nome = d.nome
             professor = d.professor ?: ""
+            bloco = d.bloco ?: ""
             cargaTotal = d.cargaHorariaTotal.toString()
             cargaSemanal = d.cargaHorariaSemanal.toString()
             limiteFaltas = d.limiteFaltas.toString()
@@ -351,6 +358,18 @@ fun DisciplinaFormScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
+                value = bloco,
+                onValueChange = { bloco = it },
+                label = { Text("Bloco / Sala") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = textFieldColors(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
                 value = cargaTotal,
                 onValueChange = { cargaTotal = it.filter { c -> c.isDigit() }; fieldErrors.remove("cargaTotal") },
                 label = { Text("Carga Horária Total *") },
@@ -456,6 +475,7 @@ fun DisciplinaFormScreen(
                     val request = CriarDisciplinaRequest(
                         nome = nome.trim(),
                         professor = professor.trim().ifBlank { null },
+                        bloco = bloco.trim().ifBlank { null },
                         cargaHorariaTotal = cargaTotal.toIntOrNull() ?: 0,
                         cargaHorariaSemanal = cargaSemanal.toIntOrNull() ?: 0,
                         limiteFaltas = limiteFaltas.toIntOrNull() ?: 0,

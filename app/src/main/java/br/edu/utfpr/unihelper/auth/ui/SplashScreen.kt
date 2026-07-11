@@ -31,7 +31,8 @@ import br.edu.utfpr.unihelper.ui.theme.Surface
 @Composable
 fun SplashScreen(
     onNavigateToLogin: () -> Unit,
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    onNavigateToConfirmEmail: (String) -> Unit = {}
 ) {
     val activity = LocalActivity.current as ComponentActivity
     val viewModel: AuthViewModel = org.koin.androidx.compose.koinViewModel(viewModelStoreOwner = activity)
@@ -51,7 +52,10 @@ fun SplashScreen(
                 viewModel.enviarFcmToken()
                 onNavigateToHome()
             } else {
-                onNavigateToLogin()
+                uiState.pendingConfirmationEmail?.let { email ->
+                    viewModel.resetState()
+                    onNavigateToConfirmEmail(email)
+                } ?: onNavigateToLogin()
             }
         }
     }

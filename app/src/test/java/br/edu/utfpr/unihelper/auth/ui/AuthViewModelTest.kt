@@ -1,7 +1,9 @@
 package br.edu.utfpr.unihelper.auth.ui
 
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
+import br.edu.utfpr.unihelper.auth.data.remote.RegisterResponse
 import br.edu.utfpr.unihelper.auth.data.repository.AuthRepository
+import br.edu.utfpr.unihelper.auth.data.repository.LoginResult
 import br.edu.utfpr.unihelper.core.sync.AuthEvent
 import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import br.edu.utfpr.unihelper.core.ui.UiEvent
@@ -25,6 +27,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -72,7 +75,7 @@ class AuthViewModelTest {
 
     @Test
     fun `login emits success with user`() = runTest(testDispatcher) {
-        coEvery { repository.login(any(), any()) } returns Result.success(mockUser)
+        coEvery { repository.login(any(), any()) } returns LoginResult.Success(mockUser)
 
         viewModel.login("joao@utfpr.edu.br", "123456")
         advanceUntilIdle()
@@ -84,7 +87,7 @@ class AuthViewModelTest {
 
     @Test
     fun `login emits error on failure`() = runTest(testDispatcher) {
-        coEvery { repository.login(any(), any()) } returns Result.failure(Exception("Email ou senha inválidos"))
+        coEvery { repository.login(any(), any()) } returns LoginResult.Error(Exception("Email ou senha inválidos"))
 
         val events = mutableListOf<UiEvent>()
         val collectorJob = launch {
@@ -104,15 +107,31 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `register emits success`() = runTest(testDispatcher) {
-        coEvery { repository.register(any(), any(), any(), any(), any()) } returns Result.success(mockUser)
+    fun `login emits email not confirmed`() = runTest(testDispatcher) {
+        coEvery { repository.login(any(), any()) } returns LoginResult.EmailNotConfirmed
+
+        viewModel.login("joao@utfpr.edu.br", "123456")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isSuccess)
+        assertNotNull(state.pendingConfirmationEmail)
+        assertEquals("joao@utfpr.edu.br", state.pendingConfirmationEmail)
+    }
+
+    @Test
+    fun `register emits success with email`() = runTest(testDispatcher) {
+        val registerResponse = RegisterResponse(
+            mensagem = "Confirme seu email",
+            email = "joao@utfpr.edu.br"
+        )
+        coEvery { repository.register(any(), any(), any(), any(), any()) } returns Result.success(registerResponse)
 
         viewModel.register("João", null, "joao@utfpr.edu.br", "123456", null)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertTrue(state.isSuccess)
-        assertEquals(mockUser, state.user)
+        assertEquals("joao@utfpr.edu.br", state.registeredEmail)
     }
 
     @Test
@@ -129,8 +148,7 @@ class AuthViewModelTest {
         collectorJob.cancel()
 
         val state = viewModel.uiState.value
-        assertFalse(state.isSuccess)
-        assertNull(state.user)
+        assertNull(state.registeredEmail)
         assertTrue(events.isNotEmpty())
         val errorDialog = events.first() as UiEvent.ErrorDialog
         assertEquals("Email já cadastrado", errorDialog.message)
@@ -139,6 +157,7 @@ class AuthViewModelTest {
     @Test
     fun `checkSession sets invalid when no session`() = runTest(testDispatcher) {
         every { repository.hasSession() } returns false
+        every { repository.hasPendingConfirmation() } returns false
 
         viewModel.checkSession()
 

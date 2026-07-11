@@ -65,7 +65,7 @@ class TokenRefreshHelper(
             response.curso?.let { tokenStorage.saveCurso(it) }
             response.token
         } catch (_: Exception) {
-            tokenStorage.clearAll()
+            tokenStorage.clearSession()
             database.limparTudo()
             authEventBus.emit(AuthEvent.LoggedOut)
             null

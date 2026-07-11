@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.repository.AuthRepository
+import br.edu.utfpr.unihelper.auth.data.repository.LoginResult
 import br.edu.utfpr.unihelper.core.network.ApiException
 import br.edu.utfpr.unihelper.core.network.toErrorDialog
 import br.edu.utfpr.unihelper.core.sync.AuthEvent
@@ -20,6 +21,8 @@ import kotlinx.coroutines.launch
 data class AuthUiState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
+    val registeredEmail: String? = null,
+    val pendingConfirmationEmail: String? = null,
     val error: String? = null,
     val user: AuthResponse? = null,
     val sessionChecked: Boolean = false,
@@ -77,12 +80,19 @@ class AuthViewModel(
     fun login(email: String, senha: String) {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
-            val result = authRepository.login(email, senha)
-            if (result.isSuccess) {
-                _uiState.value = AuthUiState(isSuccess = true, user = result.getOrNull())
-            } else {
-                result.exceptionOrNull()?.let { _uiEvent.tryEmit(it.toErrorDialog()) }
-                _uiState.value = AuthUiState()
+            when (val result = authRepository.login(email, senha)) {
+                is LoginResult.Success -> {
+                    _uiState.value = AuthUiState(isSuccess = true, user = result.auth)
+                }
+                is LoginResult.EmailNotConfirmed -> {
+                    _uiState.value = AuthUiState(
+                        pendingConfirmationEmail = email
+                    )
+                }
+                is LoginResult.Error -> {
+                    _uiEvent.tryEmit(result.exception.toErrorDialog())
+                    _uiState.value = AuthUiState()
+                }
             }
         }
     }
@@ -98,7 +108,8 @@ class AuthViewModel(
             _uiState.value = AuthUiState(isLoading = true)
             val result = authRepository.register(nomeCompleto, apelido, email, senha, curso)
             if (result.isSuccess) {
-                _uiState.value = AuthUiState(isSuccess = true, user = result.getOrNull())
+                val registeredEmail = result.getOrNull()?.email ?: email
+                _uiState.value = AuthUiState(registeredEmail = registeredEmail)
             } else {
                 result.exceptionOrNull()?.let { _uiEvent.tryEmit(it.toErrorDialog()) }
                 _uiState.value = AuthUiState()
@@ -108,6 +119,14 @@ class AuthViewModel(
 
     fun checkSession() {
         if (!authRepository.hasSession()) {
+            if (authRepository.hasPendingConfirmation()) {
+                _uiState.value = AuthUiState(
+                    sessionChecked = true,
+                    isSessionValid = false,
+                    pendingConfirmationEmail = authRepository.getPendingConfirmationEmail()
+                )
+                return
+            }
             _uiState.value = AuthUiState(sessionChecked = true, isSessionValid = false)
             return
         }
