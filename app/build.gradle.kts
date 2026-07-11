@@ -23,17 +23,27 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             buildConfigField("String", "API_BASE_URL", "\"http://${project.properties["server.ip"]}:8080\"")
         }
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "API_BASE_URL", "\"https://unihelper-backend-production.up.railway.app\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://stopping-pas-florida-mesh.trycloudflare.com\"")
         }
     }
     compileOptions {

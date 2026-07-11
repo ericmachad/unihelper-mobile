@@ -16,5 +16,5 @@ interface NotificacaoApi {
     suspend fun marcarComoLida(@Path("id") id: String): NotificacaoResponse
 
     @PATCH("notificacoes/read-all")
-    suspend fun marcarTodasComoLidas(): Map<String, Any>
+    suspend fun marcarTodasComoLidas()
 }

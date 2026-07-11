@@ -4,6 +4,7 @@ import br.edu.utfpr.unihelper.agenda.data.local.EventoDao
 import br.edu.utfpr.unihelper.core.local.SyncStatus
 import br.edu.utfpr.unihelper.core.network.safeApiCall
 import br.edu.utfpr.unihelper.core.sync.SyncScheduler
+import br.edu.utfpr.unihelper.disciplina.data.local.DisciplinaComHorarios
 import br.edu.utfpr.unihelper.disciplina.data.local.DisciplinaDao
 import br.edu.utfpr.unihelper.disciplina.data.local.DisciplinaEntity
 import br.edu.utfpr.unihelper.disciplina.data.local.HorarioDao
@@ -13,6 +14,7 @@ import br.edu.utfpr.unihelper.disciplina.data.remote.CriarDisciplinaRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarHorarioRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaApi
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
+import br.edu.utfpr.unihelper.disciplina.data.remote.HorarioResponse
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -26,7 +28,7 @@ class DisciplinaRepository(
     fun listarFlow(): Flow<List<DisciplinaEntity>> = disciplinaDao.listar()
 
     fun listarDisciplinasFlow(): Flow<List<DisciplinaResponse>> =
-        disciplinaDao.listar().map { entities -> entities.map { it.toResponse() } }
+        disciplinaDao.listarComHorarios().map { list -> list.map { it.toResponse() } }
 
     suspend fun listar(): Result<List<DisciplinaResponse>> {
         syncPending()
@@ -41,14 +43,14 @@ class DisciplinaRepository(
     }
 
     suspend fun buscarPorId(id: String): Result<DisciplinaResponse> {
-        val cached = disciplinaDao.buscarPorId(id)
+        val cached = disciplinaDao.buscarComHorarios(id)
         return safeApiCall { api.buscarPorId(id) }.onSuccess { response ->
             disciplinaDao.inserir(response.toEntity())
             response.horarios.forEach { horario ->
                 horarioDao.inserir(horario.toEntity(response.id))
             }
         }.recoverCatching { e ->
-            cached?.let { it.toResponse() } ?: throw e
+            cached?.toResponse() ?: throw e
         }
     }
 
@@ -58,6 +60,7 @@ class DisciplinaRepository(
             id = localId,
             nome = request.nome,
             professor = request.professor,
+            bloco = request.bloco,
             cargaHorariaTotal = request.cargaHorariaTotal,
             cargaHorariaSemanal = request.cargaHorariaSemanal,
             limiteFaltas = request.limiteFaltas,
@@ -145,6 +148,7 @@ private fun DisciplinaResponse.toEntity() = DisciplinaEntity(
     id = id,
     nome = nome,
     professor = professor,
+    bloco = bloco,
     cargaHorariaTotal = cargaHorariaTotal,
     cargaHorariaSemanal = cargaHorariaSemanal,
     limiteFaltas = limiteFaltas,
@@ -162,21 +166,30 @@ private fun br.edu.utfpr.unihelper.disciplina.data.remote.HorarioResponse.toEnti
     syncStatus = SyncStatus.SYNCED
 )
 
-private fun DisciplinaEntity.toResponse() = DisciplinaResponse(
-    id = id,
-    nome = nome,
-    professor = professor,
-    cargaHorariaTotal = cargaHorariaTotal,
-    cargaHorariaSemanal = cargaHorariaSemanal,
-    limiteFaltas = limiteFaltas,
-    faltasRegistradas = faltasRegistradas,
-    faltasCriticas = faltasCriticas,
-    horarios = emptyList()
+private fun DisciplinaComHorarios.toResponse() = DisciplinaResponse(
+    id = disciplina.id,
+    nome = disciplina.nome,
+    professor = disciplina.professor,
+    bloco = disciplina.bloco,
+    cargaHorariaTotal = disciplina.cargaHorariaTotal,
+    cargaHorariaSemanal = disciplina.cargaHorariaSemanal,
+    limiteFaltas = disciplina.limiteFaltas,
+    faltasRegistradas = disciplina.faltasRegistradas,
+    faltasCriticas = disciplina.faltasCriticas,
+    horarios = horarios.map {
+        HorarioResponse(
+            id = it.id,
+            diaSemana = it.diaSemana,
+            horaInicio = it.horaInicio,
+            horaFim = it.horaFim
+        )
+    }
 )
 
 private fun DisciplinaEntity.toRequest(horarios: List<HorarioEntity>) = CriarDisciplinaRequest(
     nome = nome,
     professor = professor,
+    bloco = bloco,
     cargaHorariaTotal = cargaHorariaTotal,
     cargaHorariaSemanal = cargaHorariaSemanal,
     limiteFaltas = limiteFaltas,

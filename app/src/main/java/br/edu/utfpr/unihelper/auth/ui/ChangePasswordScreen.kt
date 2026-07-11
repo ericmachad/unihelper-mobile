@@ -133,7 +133,7 @@ fun ChangePasswordScreen(
                 value = novaSenha,
                 onValueChange = { novaSenha = it; localError = null },
                 label = { Text("Nova senha") },
-                supportingText = { Text("Mínimo 6 caracteres") },
+                supportingText = { Text("Mínimo 8 caracteres") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
@@ -170,7 +170,7 @@ fun ChangePasswordScreen(
                 onClick = {
                     when {
                         novaSenha.length < 6 -> {
-                            localError = "A nova senha deve ter no mínimo 6 caracteres"
+                            localError = "A nova senha deve ter no mínimo 8 caracteres"
                         }
                         novaSenha != confirmarSenha -> {
                             localError = "Senhas não conferem"

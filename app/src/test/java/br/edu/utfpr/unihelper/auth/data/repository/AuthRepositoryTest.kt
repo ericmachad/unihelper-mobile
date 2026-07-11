@@ -3,6 +3,7 @@ package br.edu.utfpr.unihelper.auth.data.repository
 import br.edu.utfpr.unihelper.auth.data.remote.AuthApi
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.remote.RefreshRequest
+import br.edu.utfpr.unihelper.auth.data.remote.RegisterResponse
 import br.edu.utfpr.unihelper.core.local.SessionManager
 import br.edu.utfpr.unihelper.dispositivo.data.repository.DispositivoRepository
 import io.mockk.coEvery
@@ -62,25 +63,29 @@ class AuthRepositoryTest {
 
         val result = repository.login("joao@utfpr.edu.br", "123456")
 
-        assertTrue(result.isSuccess)
-        assertEquals(mockResponse, result.getOrNull())
+        assertTrue(result is LoginResult.Success)
+        assertEquals(mockResponse, (result as LoginResult.Success).auth)
         coVerify { authApi.login(any()) }
         verify { sessionManager.persistAuth(mockResponse) }
     }
 
     @Test
-    fun `login returns failure on API exception`() = runTest {
+    fun `login returns error on API exception`() = runTest {
         coEvery { authApi.login(any()) } throws Exception("Erro interno do servidor")
 
         val result = repository.login("joao@utfpr.edu.br", "123456")
 
-        assertTrue(result.isFailure)
-        assertEquals("Erro interno do servidor", result.exceptionOrNull()?.message)
+        assertTrue(result is LoginResult.Error)
+        assertEquals("Erro interno do servidor", (result as LoginResult.Error).exception.message)
     }
 
     @Test
     fun `register calls API with correct parameters`() = runTest {
-        coEvery { authApi.register(any()) } returns mockResponse
+        val registerResponse = RegisterResponse(
+            mensagem = "Confirme seu email",
+            email = "joao@utfpr.edu.br"
+        )
+        coEvery { authApi.register(any()) } returns registerResponse
 
         val result = repository.register(
             nomeCompleto = "João Silva",
@@ -91,7 +96,7 @@ class AuthRepositoryTest {
         )
 
         assertTrue(result.isSuccess)
-        assertEquals(mockResponse, result.getOrNull())
+        assertEquals(registerResponse, result.getOrNull())
         coVerify {
             authApi.register(withArg {
                 assertEquals("João Silva", it.nomeCompleto)

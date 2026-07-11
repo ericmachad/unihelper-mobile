@@ -29,7 +29,7 @@ import br.edu.utfpr.unihelper.notificacao.data.local.NotificacaoEntity
         UsuarioEntity::class,
         NotaEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

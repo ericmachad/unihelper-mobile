@@ -45,3 +45,27 @@ data class AlterarSenhaRequest(
     val senhaAtual: String,
     val novaSenha: String
 )
+
+@Serializable
+data class RegisterResponse(
+    val mensagem: String,
+    val email: String
+)
+
+@Serializable
+data class ResendConfirmationRequest(val email: String)
+
+@Serializable
+data class ForgotPasswordRequest(val email: String)
+
+@Serializable
+data class ResetPasswordRequest(
+    val token: String,
+    val novaSenha: String
+)
+
+@Serializable
+data class ConfirmEmailRequest(
+    val email: String,
+    val codigo: String
+)

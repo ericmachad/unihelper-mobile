@@ -11,7 +11,7 @@ interface AuthApi {
     suspend fun login(@Body request: LoginRequest): AuthResponse
 
     @POST("auth/register")
-    suspend fun register(@Body request: RegisterRequest): AuthResponse
+    suspend fun register(@Body request: RegisterRequest): RegisterResponse
 
     @POST("auth/refresh")
     suspend fun refresh(@Body request: RefreshRequest): AuthResponse
@@ -27,4 +27,16 @@ interface AuthApi {
 
     @POST("auth/logout")
     suspend fun logout()
+
+    @POST("auth/confirm")
+    suspend fun confirmEmail(@Body request: ConfirmEmailRequest): AuthResponse
+
+    @POST("auth/resend-confirmation")
+    suspend fun resendConfirmation(@Body request: ResendConfirmationRequest): RegisterResponse
+
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): RegisterResponse
+
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): AuthResponse
 }

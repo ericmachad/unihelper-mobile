@@ -60,7 +60,6 @@ import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
 import br.edu.utfpr.unihelper.core.ui.UiEvent
 import br.edu.utfpr.unihelper.disciplina.data.remote.DiaSemana
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
-import br.edu.utfpr.unihelper.ui.theme.Accent
 import kotlinx.coroutines.flow.collectLatest
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Background
@@ -247,7 +246,9 @@ fun DisciplinaDetalheScreen(
                                 color = TextGray
                             )
                         }
-                        StatusBadgeDetalhe(faltasCriticas = disciplina.faltasCriticas)
+                        disciplina.bloco?.let { bloco ->
+                            BlocoChip(text = bloco)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -437,23 +438,18 @@ private fun InfoItem(
 }
 
 @Composable
-private fun StatusBadgeDetalhe(faltasCriticas: Boolean) {
-    val (text, color) = if (faltasCriticas) {
-        "Atenção" to Alert
-    } else {
-        "A Cursar" to Accent
-    }
+private fun BlocoChip(text: String) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(color.copy(alpha = 0.12f))
+            .background(Primary.copy(alpha = 0.12f))
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Text(
             text = text,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = color
+            color = Primary
         )
     }
 }

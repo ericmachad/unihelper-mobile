@@ -90,9 +90,34 @@ class TokenStorage(context: Context) {
         return prefs.getString(KEY_FCM_TOKEN, null)
     }
 
-    fun clearAll() {
+    fun clearSession() {
         memoryToken = null
-        prefs.edit().clear().apply()
+        prefs.edit()
+            .remove(KEY_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
+            .remove(KEY_ID_USUARIO)
+            .remove(KEY_NOME)
+            .remove(KEY_APELIDO)
+            .remove(KEY_EMAIL)
+            .remove(KEY_CURSO)
+            .remove(KEY_PENDING_CONFIRMATION_EMAIL)
+            .apply()
+    }
+
+    fun savePendingConfirmationEmail(email: String?) {
+        if (email != null) {
+            prefs.edit().putString(KEY_PENDING_CONFIRMATION_EMAIL, email).apply()
+        } else {
+            prefs.edit().remove(KEY_PENDING_CONFIRMATION_EMAIL).apply()
+        }
+    }
+
+    fun getPendingConfirmationEmail(): String? {
+        return prefs.getString(KEY_PENDING_CONFIRMATION_EMAIL, null)
+    }
+
+    fun hasPendingConfirmation(): Boolean {
+        return getPendingConfirmationEmail() != null
     }
 
     companion object {
@@ -105,6 +130,7 @@ class TokenStorage(context: Context) {
         private const val KEY_EMAIL = "email"
         private const val KEY_CURSO = "curso"
         private const val KEY_FCM_TOKEN = "fcm_token"
+        private const val KEY_PENDING_CONFIRMATION_EMAIL = "pending_confirmation_email"
 
         var instance: TokenStorage? = null
     }

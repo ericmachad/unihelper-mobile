@@ -300,14 +300,14 @@ fun EventoBottomSheet(
                         tituloError = true
                         return@Button
                     }
-                    if (precisaDisciplina && pesoText.isNotBlank()) {
+                    if (precisaDisciplina) {
                         val pesoNum = pesoText.toFloatOrNull()
                         if (pesoNum == null || pesoNum <= 0f) {
                             pesoError = true
                             return@Button
                         }
                     }
-                    val peso = if (precisaDisciplina && pesoText.isNotBlank()) pesoText.toFloatOrNull() else null
+                    val peso = if (precisaDisciplina) pesoText.toFloatOrNull() else null
                     onSalvar(titulo, tipo, "${data}T${horaInicio}:00", "${data}T${horaFim}:00", peso, disciplinaId)
                 },
                 shape = RoundedCornerShape(12.dp),

@@ -37,11 +37,29 @@ class SessionManager(
     }
 
     suspend fun clearSession() {
-        tokenStorage.clearAll()
+        tokenStorage.clearSession()
         database.limparTudo()
         mediaConfig.clear()
         authEventBus.emit(AuthEvent.LoggedOut)
     }
 
     fun getFcmToken(): String? = tokenStorage.getFcmToken()
+
+    fun saveFcmToken(token: String) = tokenStorage.saveFcmToken(token)
+
+    fun persistPendingConfirmation(email: String) {
+        tokenStorage.savePendingConfirmationEmail(email)
+    }
+
+    fun getPendingConfirmationEmail(): String? {
+        return tokenStorage.getPendingConfirmationEmail()
+    }
+
+    fun hasPendingConfirmation(): Boolean {
+        return tokenStorage.hasPendingConfirmation()
+    }
+
+    fun clearPendingConfirmation() {
+        tokenStorage.savePendingConfirmationEmail(null)
+    }
 }

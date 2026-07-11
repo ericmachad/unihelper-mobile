@@ -9,6 +9,7 @@ import br.edu.utfpr.unihelper.agenda.data.remote.EventoResponse
 import br.edu.utfpr.unihelper.agenda.data.remote.LancarNotaRequest
 import br.edu.utfpr.unihelper.agenda.data.remote.MediaResponse
 import br.edu.utfpr.unihelper.core.local.SyncStatus
+import br.edu.utfpr.unihelper.core.network.ApiException
 import br.edu.utfpr.unihelper.core.network.safeApiCall
 import br.edu.utfpr.unihelper.core.sync.SyncScheduler
 import kotlinx.coroutines.flow.Flow
@@ -41,54 +42,61 @@ class AgendaRepository(
         safeApiCall { api.buscarPorId(id) }
 
     suspend fun lancarNota(id: String, valor: Float): Result<EventoResponse> {
-        dao.atualizarStatus(id, SyncStatus.PENDING_UPDATE.name)
-        return safeApiCall { api.lancarNota(id, LancarNotaRequest(valor)) }.onSuccess {
-            dao.inserir(it.toEntity())
-        }.onFailure {
-            syncScheduler.agendar()
-        }
+        return safeApiCall { api.lancarNota(id, LancarNotaRequest(valor)) }
+            .onSuccess { dao.inserir(it.toEntity()) }
+            .onFailure { error ->
+                if (!error.isClientError()) {
+                    dao.atualizarStatus(id, SyncStatus.PENDING_UPDATE.name)
+                    syncScheduler.agendar()
+                }
+            }
     }
 
     suspend fun calcularMedia(disciplinaId: String, mediaMinima: Float): Result<MediaResponse> =
         safeApiCall { api.calcularMedia(disciplinaId, mediaMinima) }
 
     suspend fun criarEvento(request: EventoRequest): Result<EventoResponse> {
-        val localId = java.util.UUID.randomUUID().toString()
-        val entity = EventoEntity(
-            id = localId,
-            titulo = request.titulo,
-            tipo = request.tipo,
-            dataHoraInicio = request.dataHoraInicio,
-            dataHoraFim = request.dataHoraFim,
-            peso = request.peso,
-            disciplinaId = request.disciplinaId,
-            syncStatus = SyncStatus.PENDING_CREATE
-        )
-        dao.inserir(entity)
-        return safeApiCall { api.criarEvento(request) }.onSuccess { response ->
-            dao.deletarPorId(localId)
-            dao.inserir(response.toEntity())
-        }.onFailure {
-            syncScheduler.agendar()
-        }
+        return safeApiCall { api.criarEvento(request) }
+            .onSuccess { response -> dao.inserir(response.toEntity()) }
+            .onFailure { error ->
+                if (!error.isClientError()) {
+                    val localId = java.util.UUID.randomUUID().toString()
+                    val entity = EventoEntity(
+                        id = localId,
+                        titulo = request.titulo,
+                        tipo = request.tipo,
+                        dataHoraInicio = request.dataHoraInicio,
+                        dataHoraFim = request.dataHoraFim,
+                        peso = request.peso,
+                        disciplinaId = request.disciplinaId,
+                        syncStatus = SyncStatus.PENDING_CREATE
+                    )
+                    dao.inserir(entity)
+                    syncScheduler.agendar()
+                }
+            }
     }
 
     suspend fun atualizarEvento(id: String, request: EventoRequest): Result<EventoResponse> {
-        dao.atualizarStatus(id, SyncStatus.PENDING_UPDATE.name)
-        return safeApiCall { api.atualizarEvento(id, request) }.onSuccess { response ->
-            dao.inserir(response.toEntity())
-        }.onFailure {
-            syncScheduler.agendar()
-        }
+        return safeApiCall { api.atualizarEvento(id, request) }
+            .onSuccess { response -> dao.inserir(response.toEntity()) }
+            .onFailure { error ->
+                if (!error.isClientError()) {
+                    dao.atualizarStatus(id, SyncStatus.PENDING_UPDATE.name)
+                    syncScheduler.agendar()
+                }
+            }
     }
 
     suspend fun excluirEvento(id: String): Result<Unit> {
-        dao.atualizarStatus(id, SyncStatus.PENDING_DELETE.name)
-        return safeApiCall { api.excluirEvento(id) }.onSuccess {
-            dao.deletarPorId(id)
-        }.onFailure {
-            syncScheduler.agendar()
-        }
+        return safeApiCall { api.excluirEvento(id) }
+            .onSuccess { dao.deletarPorId(id) }
+            .onFailure { error ->
+                if (!error.isClientError()) {
+                    dao.atualizarStatus(id, SyncStatus.PENDING_DELETE.name)
+                    syncScheduler.agendar()
+                }
+            }
     }
 
     suspend fun syncPending() {
@@ -107,6 +115,10 @@ class AgendaRepository(
                     safeApiCall { api.criarEvento(request) }.onSuccess { response ->
                         dao.deletarPorId(evento.id)
                         dao.inserir(response.toEntity())
+                    }.onFailure { error ->
+                        if (error.isClientError()) {
+                            dao.deletarPorId(evento.id)
+                        }
                     }
                 }
                 SyncStatus.PENDING_UPDATE -> {
@@ -157,3 +169,7 @@ private fun EventoResponse.toEntity() = EventoEntity(
     disciplinaNome = disciplinaNome,
     syncStatus = SyncStatus.SYNCED
 )
+
+private fun Throwable.isClientError(): Boolean {
+    return (this as? ApiException)?.status in 400..499
+}
