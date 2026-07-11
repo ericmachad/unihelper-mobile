@@ -1,4 +1,4 @@
-package br.edu.utfpr.unihelper.avaliacao.ui
+package br.edu.utfpr.unihelper.agenda.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -9,20 +9,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import br.edu.utfpr.unihelper.avaliacao.data.local.AvaliacaoEntity
+import br.edu.utfpr.unihelper.agenda.data.local.EventoEntity
 import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Background
@@ -31,25 +36,27 @@ import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Success
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 @Composable
-fun AvaliacaoCard(
-    avaliacao: AvaliacaoEntity,
+fun EventoCard(
+    evento: EventoEntity,
     mediaMinima: Float,
     onEditar: () -> Unit,
     onLancarNota: () -> Unit,
     onExcluir: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val notaTexto = if (avaliacao.valor != null) {
-        "%.1f".format(avaliacao.valor)
+    val notaTexto = if (evento.valor != null) {
+        "%.1f".format(evento.valor)
     } else {
         "—"
     }
 
     val notaColor = when {
-        avaliacao.valor == null -> TextGray
-        avaliacao.valor >= mediaMinima -> Success
+        evento.valor == null -> TextGray
+        evento.valor >= mediaMinima -> Success
         else -> Alert
     }
 
@@ -68,17 +75,17 @@ fun AvaliacaoCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = avaliacao.descricao,
+                            text = evento.titulo,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Primary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = when (avaliacao.tipo) {
+                            text = when (evento.tipo) {
                                 "PROVA" -> "Prova"
                                 "TRABALHO" -> "Trabalho"
-                                else -> avaliacao.tipo
+                                else -> evento.tipo
                             },
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
@@ -89,8 +96,13 @@ fun AvaliacaoCard(
                         )
                     }
                     Spacer(modifier = Modifier.height(2.dp))
+                    val dataExibicao = try {
+                        LocalDateTime.parse(evento.dataHoraInicio).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    } catch (_: Exception) {
+                        evento.dataHoraInicio.take(10)
+                    }
                     Text(
-                        text = "Peso: ${avaliacao.peso.toInt()}  |  ${avaliacao.data}",
+                        text = "Peso: ${(evento.peso ?: 0f).toInt()}  |  $dataExibicao",
                         fontSize = 12.sp,
                         color = TextGray
                     )
@@ -109,21 +121,19 @@ fun AvaliacaoCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = onEditar) {
-                    Text("Editar", fontSize = 13.sp, color = TextGray)
+                IconButton(onClick = onEditar) {
+                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = TextGray, modifier = Modifier.size(18.dp))
                 }
-                Spacer(modifier = Modifier.width(4.dp))
-                TextButton(onClick = onExcluir) {
-                    Text("Excluir", fontSize = 13.sp, color = Alert)
+                IconButton(onClick = onExcluir) {
+                    Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Alert, modifier = Modifier.size(18.dp))
                 }
-                Spacer(modifier = Modifier.width(8.dp))
                 OutlinedButton(
                     onClick = onLancarNota,
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Primary)
                 ) {
                     Text(
-                        text = if (avaliacao.valor == null) "Lançar Nota" else "Alterar Nota",
+                        text = if (evento.valor == null) "Lançar Nota" else "Alterar Nota",
                         fontSize = 13.sp
                     )
                 }

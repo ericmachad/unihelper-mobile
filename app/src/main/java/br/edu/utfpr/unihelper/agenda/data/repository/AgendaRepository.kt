@@ -6,19 +6,51 @@ import br.edu.utfpr.unihelper.agenda.data.remote.AgendaApi
 import br.edu.utfpr.unihelper.agenda.data.remote.AgendaItemResponse
 import br.edu.utfpr.unihelper.agenda.data.remote.EventoRequest
 import br.edu.utfpr.unihelper.agenda.data.remote.EventoResponse
+import br.edu.utfpr.unihelper.agenda.data.remote.LancarNotaRequest
+import br.edu.utfpr.unihelper.agenda.data.remote.MediaResponse
 import br.edu.utfpr.unihelper.core.local.SyncStatus
 import br.edu.utfpr.unihelper.core.network.safeApiCall
+import br.edu.utfpr.unihelper.core.sync.SyncScheduler
+import kotlinx.coroutines.flow.Flow
 
 class AgendaRepository(
     private val api: AgendaApi,
-    private val dao: EventoDao
+    private val dao: EventoDao,
+    private val syncScheduler: SyncScheduler
 ) {
     suspend fun listar(dataInicio: String, dataFim: String): Result<List<AgendaItemResponse>> {
+        syncPending()
         return safeApiCall { api.listar(dataInicio, dataFim) }.onSuccess { items ->
-            dao.deletarPorPeriodo(dataInicio, dataFim)
             dao.inserirTodas(items.map { it.toEntity() })
         }
     }
+
+    suspend fun syncDoBackend(disciplinaId: String) {
+        safeApiCall { api.listarPorDisciplina(disciplinaId) }.onSuccess { eventos ->
+            eventos.forEach { dao.inserir(it.toEntity()) }
+        }
+    }
+
+    fun listarPorDisciplinaFlow(disciplinaId: String): Flow<List<EventoEntity>> =
+        dao.listarPorDisciplina(disciplinaId)
+
+    fun listarFlow(dataInicio: String, dataFim: String): Flow<List<EventoEntity>> =
+        dao.listar(dataInicio, dataFim)
+
+    suspend fun buscarPorId(id: String): Result<EventoResponse> =
+        safeApiCall { api.buscarPorId(id) }
+
+    suspend fun lancarNota(id: String, valor: Float): Result<EventoResponse> {
+        dao.atualizarStatus(id, SyncStatus.PENDING_UPDATE.name)
+        return safeApiCall { api.lancarNota(id, LancarNotaRequest(valor)) }.onSuccess {
+            dao.inserir(it.toEntity())
+        }.onFailure {
+            syncScheduler.agendar()
+        }
+    }
+
+    suspend fun calcularMedia(disciplinaId: String, mediaMinima: Float): Result<MediaResponse> =
+        safeApiCall { api.calcularMedia(disciplinaId, mediaMinima) }
 
     suspend fun criarEvento(request: EventoRequest): Result<EventoResponse> {
         val localId = java.util.UUID.randomUUID().toString()
@@ -36,6 +68,8 @@ class AgendaRepository(
         return safeApiCall { api.criarEvento(request) }.onSuccess { response ->
             dao.deletarPorId(localId)
             dao.inserir(response.toEntity())
+        }.onFailure {
+            syncScheduler.agendar()
         }
     }
 
@@ -43,6 +77,8 @@ class AgendaRepository(
         dao.atualizarStatus(id, SyncStatus.PENDING_UPDATE.name)
         return safeApiCall { api.atualizarEvento(id, request) }.onSuccess { response ->
             dao.inserir(response.toEntity())
+        }.onFailure {
+            syncScheduler.agendar()
         }
     }
 
@@ -50,6 +86,8 @@ class AgendaRepository(
         dao.atualizarStatus(id, SyncStatus.PENDING_DELETE.name)
         return safeApiCall { api.excluirEvento(id) }.onSuccess {
             dao.deletarPorId(id)
+        }.onFailure {
+            syncScheduler.agendar()
         }
     }
 

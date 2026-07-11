@@ -10,4 +10,8 @@ class DispositivoRepository(
     suspend fun registrarToken(token: String): Result<Unit> = safeApiCall {
         api.registrarToken(TokenRequest(token))
     }
+
+    suspend fun removerToken(): Result<Unit> = safeApiCall {
+        api.removerToken()
+    }
 }

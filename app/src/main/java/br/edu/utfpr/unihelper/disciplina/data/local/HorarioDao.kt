@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -12,6 +13,9 @@ interface HorarioDao {
 
     @Query("SELECT * FROM horarios WHERE disciplinaId = :disciplinaId ORDER BY diaSemana ASC, horaInicio ASC")
     fun listarPorDisciplina(disciplinaId: String): Flow<List<HorarioEntity>>
+
+    @Query("SELECT * FROM horarios WHERE disciplinaId = :disciplinaId")
+    suspend fun listarPorDisciplinaSync(disciplinaId: String): List<HorarioEntity>
 
     @Query("SELECT * FROM horarios WHERE id = :id")
     suspend fun buscarPorId(id: String): HorarioEntity?
@@ -30,4 +34,10 @@ interface HorarioDao {
 
     @Query("DELETE FROM horarios WHERE id = :id")
     suspend fun deletarPorId(id: String)
+
+    @Transaction
+    suspend fun substituirPorDisciplina(disciplinaId: String, horarios: List<HorarioEntity>) {
+        deletarPorDisciplina(disciplinaId)
+        horarios.forEach { inserir(it) }
+    }
 }

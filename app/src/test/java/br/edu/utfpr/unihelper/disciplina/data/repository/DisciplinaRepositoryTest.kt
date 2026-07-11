@@ -1,7 +1,9 @@
 package br.edu.utfpr.unihelper.disciplina.data.repository
 
+import br.edu.utfpr.unihelper.core.sync.SyncScheduler
 import br.edu.utfpr.unihelper.disciplina.data.local.DisciplinaDao
 import br.edu.utfpr.unihelper.disciplina.data.local.HorarioDao
+import br.edu.utfpr.unihelper.agenda.data.local.EventoDao
 import br.edu.utfpr.unihelper.disciplina.data.remote.AlterarFaltasRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarDisciplinaRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarHorarioRequest
@@ -33,6 +35,12 @@ class DisciplinaRepositoryTest {
     @MockK(relaxUnitFun = true)
     private lateinit var horarioDao: HorarioDao
 
+    @MockK(relaxUnitFun = true)
+    private lateinit var eventoDao: EventoDao
+
+    @MockK(relaxUnitFun = true)
+    private lateinit var syncScheduler: SyncScheduler
+
     private lateinit var repository: DisciplinaRepository
 
     private val mockDisciplina = DisciplinaResponse(
@@ -55,7 +63,8 @@ class DisciplinaRepositoryTest {
 
     @Before
     fun setup() {
-        repository = DisciplinaRepository(api, disciplinaDao, horarioDao)
+        coEvery { disciplinaDao.listarPendentes() } returns emptyList()
+        repository = DisciplinaRepository(api, disciplinaDao, horarioDao, eventoDao, syncScheduler)
     }
 
     @Test

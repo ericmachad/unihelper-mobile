@@ -2,31 +2,38 @@ package br.edu.utfpr.unihelper.disciplina.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.edu.utfpr.unihelper.core.network.ApiException
+import br.edu.utfpr.unihelper.core.network.toErrorDialog
+import br.edu.utfpr.unihelper.core.sync.AuthEvent
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
+import br.edu.utfpr.unihelper.core.ui.UiEvent
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarDisciplinaRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
 import br.edu.utfpr.unihelper.disciplina.data.repository.DisciplinaRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class DisciplinaUiState(
     val disciplinas: List<DisciplinaResponse> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
-    val error: String? = null,
-    val operacaoSucesso: Boolean = false,
     val faltasAtualizando: Set<String> = emptySet()
 )
 
 data class FormUiState(
     val isLoading: Boolean = false,
-    val error: String? = null,
     val sucesso: Boolean = false
 )
 
 class DisciplinaViewModel(
-    private val repository: DisciplinaRepository
+    private val repository: DisciplinaRepository,
+    private val authEventBus: AuthEventBus
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DisciplinaUiState())
@@ -41,27 +48,47 @@ class DisciplinaViewModel(
     private val _deleteState = MutableStateFlow<DeleteUiState>(DeleteUiState())
     val deleteState: StateFlow<DeleteUiState> = _deleteState.asStateFlow()
 
+    private val _uiEvent = MutableSharedFlow<UiEvent>(extraBufferCapacity = 1)
+    val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
+
+    private var disciplinasFlowJob: kotlinx.coroutines.Job? = null
+
     init {
-        listar()
+        viewModelScope.launch {
+            authEventBus.events.collect { event ->
+                when (event) {
+                    is AuthEvent.LoggedOut -> resetState()
+                    is AuthEvent.LoggedIn -> {
+                        resetState()
+                        listar()
+                        iniciarDisciplinasFlow()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun iniciarDisciplinasFlow() {
+        disciplinasFlowJob?.cancel()
+        disciplinasFlowJob = viewModelScope.launch {
+            repository.listarDisciplinasFlow().collect { disciplinas ->
+                _uiState.update { it.copy(
+                    disciplinas = disciplinas, isLoading = false, isRefreshing = false
+                ) }
+            }
+        }
     }
 
     fun listar(isRefresh: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
+            _uiState.update { it.copy(
                 isLoading = !isRefresh,
-                isRefreshing = isRefresh,
-                error = null
-            )
+                isRefreshing = isRefresh
+            ) }
             repository.listar()
-                .onSuccess {
-                    _uiState.value = _uiState.value.copy(
-                        disciplinas = it, isLoading = false, isRefreshing = false
-                    )
-                }
                 .onFailure {
-                    _uiState.value = _uiState.value.copy(
-                        error = it.message, isLoading = false, isRefreshing = false
-                    )
+                    _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
+                    _uiEvent.tryEmit(UiEvent.Snackbar("Não foi possível atualizar. Dados offline exibidos."))
                 }
         }
     }
@@ -74,7 +101,10 @@ class DisciplinaViewModel(
                     _disciplinaEditando.value = it
                     _formState.value = FormUiState()
                 }
-                .onFailure { _formState.value = FormUiState(error = it.message) }
+                .onFailure {
+                    _formState.value = FormUiState()
+                    _uiEvent.tryEmit(it.toErrorDialog())
+                }
         }
     }
 
@@ -84,9 +114,15 @@ class DisciplinaViewModel(
             repository.criar(request)
                 .onSuccess {
                     _formState.value = FormUiState(sucesso = true)
-                    listar()
                 }
-                .onFailure { _formState.value = FormUiState(error = it.message) }
+                .onFailure { error ->
+                    if (error is ApiException && error.status == 0) {
+                        _formState.value = FormUiState(sucesso = true)
+                    } else {
+                        _formState.value = FormUiState()
+                        _uiEvent.tryEmit(error.toErrorDialog())
+                    }
+                }
         }
     }
 
@@ -96,9 +132,15 @@ class DisciplinaViewModel(
             repository.atualizar(id, request)
                 .onSuccess {
                     _formState.value = FormUiState(sucesso = true)
-                    listar()
                 }
-                .onFailure { _formState.value = FormUiState(error = it.message) }
+                .onFailure { error ->
+                    if (error is ApiException && error.status == 0) {
+                        _formState.value = FormUiState(sucesso = true)
+                    } else {
+                        _formState.value = FormUiState()
+                        _uiEvent.tryEmit(error.toErrorDialog())
+                    }
+                }
         }
     }
 
@@ -108,35 +150,41 @@ class DisciplinaViewModel(
             repository.excluir(id)
                 .onSuccess {
                     _deleteState.value = DeleteUiState(sucesso = true)
-                    listar()
+                    _uiEvent.tryEmit(UiEvent.SuccessDialog("Disciplina excluída"))
                 }
-                .onFailure { _deleteState.value = DeleteUiState(error = it.message) }
+                .onFailure { error ->
+                    _deleteState.value = DeleteUiState()
+                    if (error is ApiException && error.status == 0) {
+                        _uiEvent.tryEmit(UiEvent.SuccessDialog("Disciplina excluída"))
+                    } else {
+                        _uiEvent.tryEmit(error.toErrorDialog())
+                    }
+                }
         }
     }
 
     fun alterarFaltas(id: String, operacao: String) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                faltasAtualizando = _uiState.value.faltasAtualizando + id
-            )
+            _uiState.update {
+                it.copy(faltasAtualizando = it.faltasAtualizando + id)
+            }
             repository.alterarFaltas(id, operacao)
                 .onSuccess {
-                    listar()
-                    _uiState.value = _uiState.value.copy(
-                        faltasAtualizando = _uiState.value.faltasAtualizando - id
-                    )
+                    _uiState.update {
+                        it.copy(faltasAtualizando = it.faltasAtualizando - id)
+                    }
                 }
                 .onFailure {
-                    _uiState.value = _uiState.value.copy(
-                        error = it.message,
-                        faltasAtualizando = _uiState.value.faltasAtualizando - id
-                    )
+                    _uiState.update {
+                        it.copy(faltasAtualizando = it.faltasAtualizando - id)
+                    }
+                    _uiEvent.tryEmit(it.toErrorDialog())
                 }
         }
     }
 
-    fun limparSucesso() {
-        _uiState.value = _uiState.value.copy(operacaoSucesso = false)
+    fun resetState() {
+        _uiState.value = DisciplinaUiState(isLoading = true)
     }
 
     fun limparDeleteState() {
@@ -150,6 +198,5 @@ class DisciplinaViewModel(
 
 data class DeleteUiState(
     val isLoading: Boolean = false,
-    val error: String? = null,
     val sucesso: Boolean = false
 )

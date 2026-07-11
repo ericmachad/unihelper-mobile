@@ -1,9 +1,9 @@
 package br.edu.utfpr.unihelper.auth.ui
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,21 +15,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,22 +37,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import br.edu.utfpr.unihelper.notificacao.data.repository.NotificacaoRepository
-import br.edu.utfpr.unihelper.ui.theme.Accent
+import br.edu.utfpr.unihelper.agenda.ui.ConfigMediaMinimaDialog
+import br.edu.utfpr.unihelper.core.local.MediaConfig
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -62,7 +63,6 @@ import org.koin.compose.koinInject
 fun ProfileScreen(
     onNavigateToEditProfile: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
-    onNavigateToHelp: () -> Unit,
     onNavigateToNotificacoes: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -70,19 +70,22 @@ fun ProfileScreen(
     val authViewModel: AuthViewModel = koinViewModel(viewModelStoreOwner = activity)
     val authState by authViewModel.uiState.collectAsState()
     val user = authState.user
+    val userName = user?.apelido ?: user?.nomeCompleto
+    val userCurso = user?.curso
 
-    val notificacaoRepository: NotificacaoRepository = koinInject()
-    var totalNaoLidas by remember { mutableStateOf(0L) }
+    val mediaConfig: MediaConfig = koinInject()
+    val mediaMinima by mediaConfig.mediaMinima.collectAsState(initial = MediaConfig.DEFAULT_MEDIA_MINIMA)
+    val scope = rememberCoroutineScope()
+    var showMediaDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (user == null) {
             authViewModel.carregarPerfil()
         }
-        notificacaoRepository.listar(apenasNaoLidas = true)
-            .onSuccess { response ->
-                totalNaoLidas = response.totalNaoLidas
-            }
     }
+
+    SuccessDialogHandler(uiEvent = authViewModel.uiEvent)
+    ErrorDialogHandler(uiEvent = authViewModel.uiEvent)
 
     Column(
         modifier = Modifier
@@ -90,58 +93,44 @@ fun ProfileScreen(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Header
-        Row(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Primary)
         ) {
-            Column {
-                Text(
-                    text = "Meu Perfil",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Primary
-                )
-                Text(
-                    text = "Gerir Conta",
-                    fontSize = 13.sp,
-                    color = TextGray
-                )
-            }
-
-            // Notification bell with badge
-            Box(contentAlignment = Alignment.TopEnd) {
-                IconButton(onClick = onNavigateToNotificacoes) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notificações",
-                        tint = Primary
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Text(
+                        text = "Olá, ${userName ?: "Usuário"}",
+                        fontSize = 14.sp,
+                        color = Surface.copy(alpha = 0.7f)
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = userCurso ?: "Sem curso definido",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Surface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                if (totalNaoLidas > 0) {
-                    Box(
-                        modifier = Modifier
-                            .background(Alert, CircleShape)
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (totalNaoLidas > 99) "99+" else totalNaoLidas.toString(),
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                Icon(
+                    imageVector = Icons.Default.Book,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(100.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 8.dp, end = 8.dp),
+                    tint = Surface.copy(alpha = 0.08f)
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Menu card
         Card(
@@ -156,7 +145,7 @@ fun ProfileScreen(
                 // Email option
                 MenuItem(
                     icon = Icons.Default.Email,
-                    title = "Email",
+                    title = "Informações pessoais",
                     subtitle = user?.email ?: "carregando...",
                     onClick = onNavigateToEditProfile
                 )
@@ -181,13 +170,14 @@ fun ProfileScreen(
                     thickness = 1.dp
                 )
 
-                // Ajuda e Suporte
+                // Media Minima
                 MenuItem(
-                    icon = Icons.AutoMirrored.Filled.HelpOutline,
-                    title = "Ajuda e Suporte",
-                    subtitle = null,
-                    onClick = onNavigateToHelp
+                    icon = Icons.Filled.Star,
+                    title = "Média Mínima",
+                    subtitle = "%.1f".format(mediaMinima),
+                    onClick = { showMediaDialog = true }
                 )
+
             }
         }
 
@@ -212,6 +202,17 @@ fun ProfileScreen(
                 fontWeight = FontWeight.Medium
             )
         }
+    }
+
+    if (showMediaDialog) {
+        ConfigMediaMinimaDialog(
+            valorAtual = mediaMinima,
+            onSalvar = { valor ->
+                scope.launch { mediaConfig.setMediaMinima(valor) }
+                showMediaDialog = false
+            },
+            onDismiss = { showMediaDialog = false }
+        )
     }
 }
 

@@ -1,6 +1,9 @@
 package br.edu.utfpr.unihelper.core.network
 
 import br.edu.utfpr.unihelper.core.local.TokenStorage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
 import okhttp3.Interceptor
 import okhttp3.Response
 
@@ -9,8 +12,7 @@ class AuthInterceptor(
     private val tokenRefreshHelper: TokenRefreshHelper
 ) : Interceptor {
 
-    private val lock = Any()
-    private var isRefreshing = false
+    private val mutex = Mutex()
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
@@ -28,15 +30,16 @@ class AuthInterceptor(
         if (response.code == 401 && tokenStorage.getRefreshToken() != null) {
             response.close()
 
-            val newToken = synchronized(lock) {
-                if (isRefreshing) {
-                    // another thread already refreshing, wait briefly then use new token
+            val newToken = runBlocking(Dispatchers.IO) {
+                if (mutex.isLocked) {
                     null
                 } else {
-                    isRefreshing = true
-                    val result = tokenRefreshHelper.refresh()
-                    isRefreshing = false
-                    result
+                    mutex.lock()
+                    try {
+                        tokenRefreshHelper.refresh()
+                    } finally {
+                        mutex.unlock()
+                    }
                 }
             }
 

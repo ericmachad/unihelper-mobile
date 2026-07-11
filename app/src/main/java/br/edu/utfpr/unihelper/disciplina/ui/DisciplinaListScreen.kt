@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -78,16 +79,14 @@ fun DisciplinaTabContent(
     disciplinas: List<DisciplinaResponse>,
     isLoading: Boolean,
     isRefreshing: Boolean,
-    error: String?,
     faltasAtualizando: Set<String>,
     onNavigateToForm: () -> Unit,
     onIncrementFalta: (String) -> Unit,
     onDecrementFalta: (String) -> Unit,
     onRefresh: () -> Unit,
     onClickCard: (String) -> Unit,
-    onDeleteClick: (String) -> Unit,
-    userName: String? = null,
-    userCurso: String? = null
+    onEditClick: (String) -> Unit,
+    onDeleteClick: (String) -> Unit
 ) {
     if (isLoading && disciplinas.isEmpty()) {
         Box(
@@ -95,29 +94,6 @@ fun DisciplinaTabContent(
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = Primary)
-        }
-        return
-    }
-
-    if (error != null && disciplinas.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = error,
-                    color = Alert,
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                androidx.compose.material3.OutlinedButton(
-                    onClick = onRefresh,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Tentar novamente")
-                }
-            }
         }
         return
     }
@@ -131,8 +107,6 @@ fun DisciplinaTabContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            item { ResumoCard(userName = userName, userCurso = userCurso) }
-
             if (disciplinas.isEmpty() && !isLoading) {
                 item {
                     Box(
@@ -157,78 +131,16 @@ fun DisciplinaTabContent(
                     onIncrementFalta = { onIncrementFalta(disciplina.id) },
                     onDecrementFalta = { onDecrementFalta(disciplina.id) },
                     onClick = { onClickCard(disciplina.id) },
+                    onEditClick = { onEditClick(disciplina.id) },
                     onDeleteClick = { onDeleteClick(disciplina.id) }
                 )
             }
 
             if (disciplinas.isNotEmpty()) {
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.material3.OutlinedButton(
-                            onClick = onNavigateToForm,
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp, Primary
-                            )
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Adicionar Nova Disciplina", color = Primary)
-                        }
-                    }
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ResumoCard(
-    userName: String? = null,
-    userCurso: String? = null
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Primary)
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(20.dp)
-            ) {
-                Text(
-                    text = "Olá, ${userName ?: "Usuário"}",
-                    fontSize = 14.sp,
-                    color = Surface.copy(alpha = 0.7f)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = userCurso ?: "Sem curso definido",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Surface
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            Icon(
-                imageVector = Icons.Default.Book,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(100.dp)
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 8.dp, end = 8.dp),
-                tint = Surface.copy(alpha = 0.08f)
-            )
         }
     }
 }
@@ -240,6 +152,7 @@ private fun DisciplinaCard(
     onIncrementFalta: () -> Unit,
     onDecrementFalta: () -> Unit,
     onClick: () -> Unit,
+    onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -309,6 +222,17 @@ private fun DisciplinaCard(
                     )
                 }
                 IconButton(
+                    onClick = onEditClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar disciplina",
+                        tint = Primary.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
                     onClick = { showDeleteDialog = true },
                     modifier = Modifier.size(36.dp)
                 ) {
@@ -343,10 +267,10 @@ private fun DisciplinaCard(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         Text(
-                            text = "--",
+                            text = if (disciplina.media != null) "%.1f".format(disciplina.media) else "--",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextGray
+                            color = if (disciplina.media != null) Primary else TextGray
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
@@ -385,7 +309,7 @@ private fun DisciplinaCard(
                         }
                         IconButton(
                             onClick = onIncrementFalta,
-                            enabled = !isFaltaLoading && disciplina.faltasRegistradas < disciplina.limiteFaltas,
+                            enabled = !isFaltaLoading && disciplina.faltasRegistradas < disciplina.cargaHorariaTotal,
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(

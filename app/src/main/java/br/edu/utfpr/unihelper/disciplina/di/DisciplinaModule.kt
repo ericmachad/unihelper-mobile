@@ -12,7 +12,7 @@ import retrofit2.Retrofit
 val disciplinaModule = module {
     single<DisciplinaApi> { get<Retrofit>().create(DisciplinaApi::class.java) }
 
-    single { DisciplinaRepository(get(), get(), get()) }
+    single { DisciplinaRepository(get(), get(), get(), get(), get()) }
 
-    viewModel { DisciplinaViewModel(get()) }
+    viewModel { DisciplinaViewModel(get(), get()) }
 }

@@ -24,4 +24,8 @@ class MediaConfig(private val context: Context) {
         require(valor in 1f..10f) { "Média mínima deve estar entre 1 e 10" }
         context.mediaConfigDataStore.edit { it[KEY_MEDIA_MINIMA] = valor }
     }
+
+    suspend fun clear() {
+        context.mediaConfigDataStore.edit { it.clear() }
+    }
 }

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.NoteAlt
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -25,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.edu.utfpr.unihelper.nota.data.remote.NotaResponse
+import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Background
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.TextGray
@@ -51,6 +54,31 @@ fun NotasSection(
     val state by viewModel.uiState.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var notaEditando by remember { mutableStateOf<NotaResponse?>(null) }
+    var showDeleteDialog by remember { mutableStateOf<String?>(null) }
+
+    if (showDeleteDialog != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = null },
+            title = { Text("Excluir Anotação") },
+            text = { Text("Tem certeza que deseja excluir esta anotação?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (disciplinaId != null && showDeleteDialog != null) {
+                            viewModel.excluir(disciplinaId, showDeleteDialog!!)
+                        }
+                        showDeleteDialog = null
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                        contentColor = Alert
+                    )
+                ) { Text("Excluir") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = null }) { Text("Cancelar") }
+            }
+        )
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -115,7 +143,7 @@ fun NotasSection(
                         showDialog = true
                     },
                     onExcluir = {
-                        if (disciplinaId != null) viewModel.excluir(disciplinaId, nota.id)
+                        showDeleteDialog = nota.id
                     }
                 )
                 Spacer(modifier = Modifier.height(6.dp))

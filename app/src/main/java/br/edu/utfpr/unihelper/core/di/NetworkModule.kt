@@ -1,6 +1,7 @@
 package br.edu.utfpr.unihelper.core.di
 
 import br.edu.utfpr.unihelper.BuildConfig
+import br.edu.utfpr.unihelper.core.local.AppDatabase
 import br.edu.utfpr.unihelper.core.local.TokenStorage
 import br.edu.utfpr.unihelper.core.network.AuthInterceptor
 import br.edu.utfpr.unihelper.core.network.TokenRefreshHelper
@@ -21,6 +22,8 @@ val networkModule = module {
         TokenRefreshHelper(
             baseUrl = BuildConfig.API_BASE_URL + "/",
             tokenStorage = get(),
+            database = get(),
+            authEventBus = get(),
             isDebug = BuildConfig.DEBUG
         )
     }

@@ -2,6 +2,7 @@ package br.edu.utfpr.unihelper.documento.data.repository
 
 import br.edu.utfpr.unihelper.core.local.SyncStatus
 import br.edu.utfpr.unihelper.core.network.safeApiCall
+import br.edu.utfpr.unihelper.core.sync.SyncScheduler
 import br.edu.utfpr.unihelper.documento.data.local.DocumentoDao
 import br.edu.utfpr.unihelper.documento.data.local.DocumentoEntity
 import br.edu.utfpr.unihelper.documento.data.remote.DocumentoApi
@@ -14,13 +15,14 @@ import kotlinx.coroutines.flow.Flow
 
 class DocumentoRepository(
     private val api: DocumentoApi,
-    private val dao: DocumentoDao
+    private val dao: DocumentoDao,
+    private val syncScheduler: SyncScheduler
 ) {
     fun listarFlow(disciplinaId: String): Flow<List<DocumentoEntity>> = dao.listar(disciplinaId)
 
     suspend fun listar(disciplinaId: String): Result<List<DocumentoResponse>> {
+        syncPending()
         return safeApiCall { api.listar(disciplinaId) }.onSuccess { docs ->
-            dao.deletarPorDisciplina(disciplinaId)
             dao.inserirTodas(docs.map { it.toEntity(disciplinaId) })
         }
     }
@@ -37,6 +39,8 @@ class DocumentoRepository(
         val descPart = descricao?.toRequestBody("text/plain".toMediaType())
         return safeApiCall { api.upload(disciplinaId, part, descPart) }.onSuccess { doc ->
             dao.inserir(doc.toEntity(disciplinaId))
+        }.onFailure {
+            syncScheduler.agendar()
         }
     }
 
@@ -45,8 +49,24 @@ class DocumentoRepository(
     }
 
     suspend fun deletar(disciplinaId: String, id: String): Result<Unit> {
+        dao.atualizarStatus(id, SyncStatus.PENDING_DELETE.name)
         return safeApiCall { api.deletar(disciplinaId, id) }.map { }.onSuccess {
             dao.deletarPorId(id)
+        }.onFailure {
+            syncScheduler.agendar()
+        }
+    }
+
+    suspend fun syncPending() {
+        val pendentes = dao.listarPendentes()
+        for (documento in pendentes) {
+            when (documento.syncStatus) {
+                SyncStatus.PENDING_DELETE -> {
+                    safeApiCall { api.deletar(documento.disciplinaId, documento.id) }.map { }
+                        .onSuccess { dao.deletarPorId(documento.id) }
+                }
+                else -> {}
+            }
         }
     }
 }

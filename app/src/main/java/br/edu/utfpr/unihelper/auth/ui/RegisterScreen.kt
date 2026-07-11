@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.edu.utfpr.unihelper.ui.theme.Background
 import br.edu.utfpr.unihelper.ui.theme.Primary
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 
 private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
@@ -62,6 +65,9 @@ fun RegisterScreen(
     var senha by remember { mutableStateOf("") }
     val fieldErrors = remember { mutableStateMapOf<String, String?>() }
     val focusManager = LocalFocusManager.current
+    val nomeTouched = remember { mutableStateOf(false) }
+    val emailTouched = remember { mutableStateOf(false) }
+    val senhaTouched = remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
@@ -69,32 +75,62 @@ fun RegisterScreen(
         }
     }
 
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent, onNavigateToLogin = onNavigateToLogin)
+
+    fun validarNomeCompleto(): Boolean {
+        return when {
+            nomeCompleto.isBlank() -> {
+                fieldErrors["nomeCompleto"] = "Campo obrigatório"
+                false
+            }
+            else -> {
+                fieldErrors.remove("nomeCompleto")
+                true
+            }
+        }
+    }
+
+    fun validarEmail(): Boolean {
+        val emailNormalizado = email.trim().lowercase()
+        return when {
+            email.isBlank() -> {
+                fieldErrors["email"] = "Campo obrigatório"
+                false
+            }
+            !EMAIL_REGEX.matches(emailNormalizado) -> {
+                fieldErrors["email"] = "Email inválido"
+                false
+            }
+            else -> {
+                fieldErrors.remove("email")
+                true
+            }
+        }
+    }
+
+    fun validarSenha(): Boolean {
+        return when {
+            senha.isBlank() -> {
+                fieldErrors["senha"] = "Campo obrigatório"
+                false
+            }
+            senha.length < 6 -> {
+                fieldErrors["senha"] = "Mínimo 6 caracteres"
+                false
+            }
+            else -> {
+                fieldErrors.remove("senha")
+                true
+            }
+        }
+    }
+
     fun validate(): Boolean {
         fieldErrors.clear()
-        var valid = true
-
-        if (nomeCompleto.isBlank()) {
-            fieldErrors["nomeCompleto"] = "Campo obrigatório"
-            valid = false
-        }
-
-        if (email.isBlank()) {
-            fieldErrors["email"] = "Campo obrigatório"
-            valid = false
-        } else if (!EMAIL_REGEX.matches(email.trim())) {
-            fieldErrors["email"] = "Email inválido"
-            valid = false
-        }
-
-        if (senha.isBlank()) {
-            fieldErrors["senha"] = "Campo obrigatório"
-            valid = false
-        } else if (senha.length < 6) {
-            fieldErrors["senha"] = "Mínimo 6 caracteres"
-            valid = false
-        }
-
-        return valid
+        val nomeValido = validarNomeCompleto()
+        val emailValido = validarEmail()
+        val senhaValida = validarSenha()
+        return nomeValido && emailValido && senhaValida
     }
 
     fun submit() {
@@ -103,7 +139,7 @@ fun RegisterScreen(
             viewModel.register(
                 nomeCompleto = nomeCompleto.trim(),
                 apelido = apelido.trim().ifBlank { null },
-                email = email.trim(),
+                email = email.trim().lowercase(),
                 senha = senha,
                 curso = curso.trim().ifBlank { null }
             )
@@ -119,6 +155,7 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.Center
         ) {
@@ -142,11 +179,17 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = nomeCompleto,
                 onValueChange = { nomeCompleto = it; fieldErrors.remove("nomeCompleto") },
-                label = { Text("Nome completo") },
+                label = { Text("Nome completo *") },
                 placeholder = { Text("Seu nome") },
                 isError = fieldErrors["nomeCompleto"] != null,
                 supportingText = fieldErrors["nomeCompleto"]?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { state ->
+                        if (state.isFocused) nomeTouched.value = true
+                        if (!state.isFocused && nomeTouched.value) validarNomeCompleto()
+                    },
+                enabled = !uiState.isLoading,
                 shape = RoundedCornerShape(12.dp),
                 colors = fieldColors(),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -178,11 +221,17 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it; fieldErrors.remove("email") },
-                label = { Text("Email") },
+                label = { Text("Email *") },
                 placeholder = { Text("seu@email.com") },
                 isError = fieldErrors["email"] != null,
                 supportingText = fieldErrors["email"]?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { state ->
+                        if (state.isFocused) emailTouched.value = true
+                        if (!state.isFocused && emailTouched.value) validarEmail()
+                    },
+                enabled = !uiState.isLoading,
                 shape = RoundedCornerShape(12.dp),
                 colors = fieldColors(),
                 keyboardOptions = KeyboardOptions(
@@ -217,11 +266,17 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = senha,
                 onValueChange = { senha = it; fieldErrors.remove("senha") },
-                label = { Text("Senha") },
+                label = { Text("Senha *") },
                 placeholder = { Text("Mínimo 6 caracteres") },
                 isError = fieldErrors["senha"] != null,
                 supportingText = fieldErrors["senha"]?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { state ->
+                        if (state.isFocused) senhaTouched.value = true
+                        if (!state.isFocused && senhaTouched.value) validarSenha()
+                    },
+                enabled = !uiState.isLoading,
                 shape = RoundedCornerShape(12.dp),
                 colors = fieldColors(),
                 visualTransformation = PasswordVisualTransformation(),
@@ -258,18 +313,11 @@ fun RegisterScreen(
                 ),
                 enabled = !uiState.isLoading
             ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = "Cadastrar",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "Cadastrar",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -283,7 +331,8 @@ fun RegisterScreen(
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = Primary,
                 ),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Primary)
+                border = androidx.compose.foundation.BorderStroke(1.dp, Primary),
+                enabled = !uiState.isLoading
             ) {
                 Text(
                     text = "Já tenho conta",
@@ -293,6 +342,17 @@ fun RegisterScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Primary)
+            }
         }
     }
 }

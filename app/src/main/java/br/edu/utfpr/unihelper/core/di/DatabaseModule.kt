@@ -21,6 +21,7 @@ val databaseModule = module {
     single { get<AppDatabase>().notificacaoDao() }
     single { get<AppDatabase>().documentoDao() }
     single { get<AppDatabase>().usuarioDao() }
+    single { get<AppDatabase>().notaDao() }
 
     single { MediaConfig(androidContext()) }
 }

@@ -1,10 +1,12 @@
-package br.edu.utfpr.unihelper.avaliacao.ui
+package br.edu.utfpr.unihelper.agenda.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -27,7 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import br.edu.utfpr.unihelper.avaliacao.data.local.AvaliacaoEntity
+import br.edu.utfpr.unihelper.agenda.data.local.EventoEntity
 import br.edu.utfpr.unihelper.ui.theme.Background
 import br.edu.utfpr.unihelper.ui.theme.Border
 import br.edu.utfpr.unihelper.ui.theme.Primary
@@ -36,13 +38,13 @@ import br.edu.utfpr.unihelper.ui.theme.TextGray
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LancarNotaBottomSheet(
-    avaliacao: AvaliacaoEntity,
+    evento: EventoEntity,
     onSalvar: (Float) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val initialText = if (avaliacao.valor != null) "%.1f".format(avaliacao.valor) else ""
+    val initialText = if (evento.valor != null) "%.1f".format(evento.valor) else ""
     var textFieldValue by remember { mutableStateOf(initialText) }
-    var numericValue by remember { mutableStateOf(avaliacao.valor ?: 0f) }
+    var numericValue by remember { mutableStateOf(evento.valor ?: 0f) }
     var hasError by remember { mutableStateOf(false) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -58,6 +60,7 @@ fun LancarNotaBottomSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = "Lançar Nota",
@@ -67,7 +70,7 @@ fun LancarNotaBottomSheet(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = avaliacao.descricao,
+                text = evento.titulo,
                 fontSize = 14.sp,
                 color = TextGray
             )
@@ -90,7 +93,7 @@ fun LancarNotaBottomSheet(
                         }
                     }
                 },
-                label = { Text("Nota (0 a 10)") },
+                label = { Text("Nota (0 a 10) *") },
                 isError = hasError,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 shape = RoundedCornerShape(12.dp),

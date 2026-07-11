@@ -1,5 +1,6 @@
 package br.edu.utfpr.unihelper.dashboard.data
 
+import br.edu.utfpr.unihelper.agenda.data.local.EventoEntity
 import br.edu.utfpr.unihelper.agenda.data.remote.AgendaItemResponse
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -33,6 +34,28 @@ fun AgendaItemResponse.toDashboardEvent(): DashboardEvent? {
         type = tipoEvento,
         disciplinaId = disciplinaId,
         dataHora = dataHora,
+        dataHoraFim = dataHoraFim
+    )
+}
+
+fun EventoEntity.toDashboardEvent(): DashboardEvent? {
+    val date = try {
+        LocalDateTime.parse(dataHoraInicio).toLocalDate()
+    } catch (_: Exception) {
+        try {
+            LocalDate.parse(dataHoraInicio.take(10))
+        } catch (_: Exception) {
+            return null
+        }
+    }
+    return DashboardEvent(
+        id = id,
+        day = date.dayOfMonth,
+        title = titulo,
+        subject = disciplinaNome,
+        type = tipo,
+        disciplinaId = disciplinaId,
+        dataHora = dataHoraInicio,
         dataHoraFim = dataHoraFim
     )
 }

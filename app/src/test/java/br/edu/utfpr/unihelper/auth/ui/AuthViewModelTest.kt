@@ -2,6 +2,9 @@ package br.edu.utfpr.unihelper.auth.ui
 
 import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.repository.AuthRepository
+import br.edu.utfpr.unihelper.core.sync.AuthEvent
+import br.edu.utfpr.unihelper.core.sync.AuthEventBus
+import br.edu.utfpr.unihelper.core.ui.UiEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -12,6 +15,8 @@ import io.mockk.runs
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -35,6 +40,9 @@ class AuthViewModelTest {
     @MockK
     private lateinit var repository: AuthRepository
 
+    @MockK
+    private lateinit var authEventBus: AuthEventBus
+
     private lateinit var viewModel: AuthViewModel
 
     private val testDispatcher = StandardTestDispatcher()
@@ -42,7 +50,9 @@ class AuthViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = AuthViewModel(repository)
+        val mockEvents = MutableSharedFlow<AuthEvent>()
+        every { authEventBus.events } returns mockEvents
+        viewModel = AuthViewModel(repository, authEventBus)
     }
 
     @After
@@ -76,13 +86,21 @@ class AuthViewModelTest {
     fun `login emits error on failure`() = runTest(testDispatcher) {
         coEvery { repository.login(any(), any()) } returns Result.failure(Exception("Email ou senha inválidos"))
 
+        val events = mutableListOf<UiEvent>()
+        val collectorJob = launch {
+            viewModel.uiEvent.collect { events.add(it) }
+        }
+
         viewModel.login("joao@utfpr.edu.br", "senha_errada")
         advanceUntilIdle()
+        collectorJob.cancel()
 
         val state = viewModel.uiState.value
         assertFalse(state.isSuccess)
-        assertEquals("Email ou senha inválidos", state.error)
         assertNull(state.user)
+        assertTrue(events.isNotEmpty())
+        val errorDialog = events.first() as UiEvent.ErrorDialog
+        assertEquals("Email ou senha inválidos", errorDialog.message)
     }
 
     @Test
@@ -101,11 +119,21 @@ class AuthViewModelTest {
     fun `register emits error on failure`() = runTest(testDispatcher) {
         coEvery { repository.register(any(), any(), any(), any(), any()) } returns Result.failure(Exception("Email já cadastrado"))
 
+        val events = mutableListOf<UiEvent>()
+        val collectorJob = launch {
+            viewModel.uiEvent.collect { events.add(it) }
+        }
+
         viewModel.register("João", null, "existente@email.com", "123456", null)
         advanceUntilIdle()
+        collectorJob.cancel()
 
         val state = viewModel.uiState.value
-        assertEquals("Email já cadastrado", state.error)
+        assertFalse(state.isSuccess)
+        assertNull(state.user)
+        assertTrue(events.isNotEmpty())
+        val errorDialog = events.first() as UiEvent.ErrorDialog
+        assertEquals("Email já cadastrado", errorDialog.message)
     }
 
     @Test
@@ -137,25 +165,34 @@ class AuthViewModelTest {
     fun `checkSession logs out on refresh failure`() = runTest(testDispatcher) {
         every { repository.hasSession() } returns true
         coEvery { repository.refreshSession() } returns Result.failure(Exception("Sessão expirada"))
-        every { repository.logout() } just runs
+        coEvery { repository.logout() } just runs
+
+        val events = mutableListOf<UiEvent>()
+        val collectorJob = launch {
+            viewModel.uiEvent.collect { events.add(it) }
+        }
 
         viewModel.checkSession()
         advanceUntilIdle()
+        collectorJob.cancel()
 
-        verify { repository.logout() }
+        coVerify { repository.logout() }
         coVerify { repository.refreshSession() }
 
         val state = viewModel.uiState.value
         assertTrue(state.sessionChecked)
         assertFalse(state.isSessionValid)
-        assertEquals("Sessão expirada", state.error)
+        assertTrue(events.isNotEmpty())
+        val errorDialog = events.first() as UiEvent.ErrorDialog
+        assertEquals("Sessão expirada", errorDialog.message)
     }
 
     @Test
     fun `logout resets state to defaults`() = runTest(testDispatcher) {
-        every { repository.logout() } just runs
+        coEvery { repository.logout() } just runs
 
         viewModel.logout()
+        advanceUntilIdle()
 
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
@@ -165,11 +202,11 @@ class AuthViewModelTest {
         assertFalse(state.sessionChecked)
         assertFalse(state.isSessionValid)
 
-        verify { repository.logout() }
+        coVerify { repository.logout() }
     }
 
     @Test
-    fun `resetState returns to defaults`() = runTest(testDispatcher) {
+    fun `resetState returns to defaults`() {
         viewModel.resetState()
 
         assertEquals(AuthUiState(), viewModel.uiState.value)

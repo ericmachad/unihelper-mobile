@@ -11,7 +11,7 @@ import retrofit2.Retrofit
 val documentoModule = module {
     single<DocumentoApi> { get<Retrofit>().create(DocumentoApi::class.java) }
 
-    single { DocumentoRepository(get(), get()) }
+    single { DocumentoRepository(get(), get(), get()) }
 
     viewModel { DocumentoViewModel(get()) }
 }
