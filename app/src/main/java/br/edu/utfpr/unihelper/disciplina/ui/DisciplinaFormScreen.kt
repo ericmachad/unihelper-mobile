@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -38,10 +39,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
+import br.edu.utfpr.unihelper.core.ui.UiEvent
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
@@ -52,14 +58,29 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarDisciplinaRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarHorarioRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.DiaSemana
+import br.edu.utfpr.unihelper.ui.theme.Alert
+import br.edu.utfpr.unihelper.ui.theme.Border
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
@@ -89,8 +110,14 @@ fun DisciplinaFormScreen(
     var cargaSemanal by remember { mutableStateOf("") }
     var limiteFaltas by remember { mutableStateOf("") }
     var horarios = remember { mutableStateListOf(HorarioForm()) }
-    var nomeError by remember { mutableStateOf<String?>(null) }
-    var apiError by remember { mutableStateOf<String?>(null) }
+    val fieldErrors = remember { mutableStateMapOf<String, String?>() }
+    val nomeTouched = remember { mutableStateOf(false) }
+    val cargaTotalTouched = remember { mutableStateOf(false) }
+    val cargaSemanalTouched = remember { mutableStateOf(false) }
+    val limiteFaltasTouched = remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    var lastRemoval by remember { mutableStateOf<Pair<Int, HorarioForm>?>(null) }
 
     val isEditing = disciplinaId != null
 
@@ -134,6 +161,7 @@ fun DisciplinaFormScreen(
             cargaSemanalVal > 0 &&
             cargaSemanalVal <= cargaTotalVal &&
             (limiteFaltas.toIntOrNull() ?: 0) > 0 &&
+            (limiteFaltas.toIntOrNull() ?: 0) <= cargaTotalVal &&
             horarios.isNotEmpty() &&
             horarios.all { it.horaInicio.isNotBlank() && it.horaFim.isNotBlank() && it.horaFim > it.horaInicio } &&
             horarios.map { it.diaSemana }.distinct().size == horarios.size
@@ -156,15 +184,113 @@ fun DisciplinaFormScreen(
         }
     }
 
+    fun validarNome(): Boolean {
+        return when {
+            nome.isBlank() -> {
+                fieldErrors["nome"] = "Campo obrigatório"
+                false
+            }
+            else -> {
+                fieldErrors.remove("nome")
+                true
+            }
+        }
+    }
+
+    fun validarCargaTotal(): Boolean {
+        return when {
+            cargaTotal.isBlank() -> {
+                fieldErrors["cargaTotal"] = "Campo obrigatório"
+                false
+            }
+            (cargaTotal.toIntOrNull() ?: 0) <= 0 -> {
+                fieldErrors["cargaTotal"] = "Deve ser maior que zero"
+                false
+            }
+            else -> {
+                fieldErrors.remove("cargaTotal")
+                true
+            }
+        }
+    }
+
+    fun validarCargaSemanal(): Boolean {
+        return when {
+            cargaSemanal.isBlank() -> {
+                fieldErrors["cargaSemanal"] = "Campo obrigatório"
+                false
+            }
+            (cargaSemanal.toIntOrNull() ?: 0) <= 0 -> {
+                fieldErrors["cargaSemanal"] = "Deve ser maior que zero"
+                false
+            }
+            else -> {
+                fieldErrors.remove("cargaSemanal")
+                true
+            }
+        }
+    }
+
+    fun validarLimiteFaltas(): Boolean {
+        return when {
+            limiteFaltas.isBlank() -> {
+                fieldErrors["limiteFaltas"] = "Campo obrigatório"
+                false
+            }
+            (limiteFaltas.toIntOrNull() ?: 0) <= 0 -> {
+                fieldErrors["limiteFaltas"] = "Deve ser maior que zero"
+                false
+            }
+            else -> {
+                fieldErrors.remove("limiteFaltas")
+                true
+            }
+        }
+    }
+
+    fun validate(): Boolean {
+        fieldErrors.clear()
+        val nomeValido = validarNome()
+        val cargaTotalValida = validarCargaTotal()
+        val cargaSemanalValida = validarCargaSemanal()
+        val limiteFaltasValido = validarLimiteFaltas()
+        return nomeValido && cargaTotalValida && cargaSemanalValida && limiteFaltasValido
+    }
+
     LaunchedEffect(formState.sucesso) {
         if (formState.sucesso) onNavigateBack()
     }
 
-    LaunchedEffect(formState.error) {
-        apiError = formState.error
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> { }
+            }
+        }
+    }
+
+    SuccessDialogHandler(uiEvent = viewModel.uiEvent)
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent)
+
+
+
+    LaunchedEffect(lastRemoval) {
+        lastRemoval?.let { (idx, horario) ->
+            val result = snackbarHostState.showSnackbar(
+                message = "Horário removido",
+                actionLabel = "Desfazer",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                horarios.add(idx, horario)
+            }
+            lastRemoval = null
+        }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -193,14 +319,18 @@ fun DisciplinaFormScreen(
                 .padding(padding)
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState())
+                .imePadding()
         ) {
             OutlinedTextField(
                 value = nome,
-                onValueChange = { nome = it; nomeError = null; apiError = null },
-                label = { Text("Nome da Disciplina") },
-                isError = nomeError != null || apiError != null,
-                supportingText = nomeError?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
+                onValueChange = { nome = it; fieldErrors.remove("nome") },
+                label = { Text("Nome da Disciplina *") },
+                isError = fieldErrors["nome"] != null,
+                supportingText = fieldErrors["nome"]?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth().onFocusChanged { state ->
+                    if (state.isFocused) nomeTouched.value = true
+                    if (!state.isFocused && nomeTouched.value) validarNome()
+                },
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
                 singleLine = true
@@ -210,8 +340,8 @@ fun DisciplinaFormScreen(
 
             OutlinedTextField(
                 value = professor,
-                onValueChange = { professor = it; apiError = null },
-                label = { Text("Professor (opcional)") },
+                onValueChange = { professor = it },
+                label = { Text("Professor") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
@@ -222,9 +352,14 @@ fun DisciplinaFormScreen(
 
             OutlinedTextField(
                 value = cargaTotal,
-                onValueChange = { cargaTotal = it.filter { c -> c.isDigit() }; apiError = null },
-                label = { Text("Carga Horária Total") },
-                modifier = Modifier.fillMaxWidth(),
+                onValueChange = { cargaTotal = it.filter { c -> c.isDigit() }; fieldErrors.remove("cargaTotal") },
+                label = { Text("Carga Horária Total *") },
+                isError = fieldErrors["cargaTotal"] != null,
+                supportingText = fieldErrors["cargaTotal"]?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth().onFocusChanged { state ->
+                    if (state.isFocused) cargaTotalTouched.value = true
+                    if (!state.isFocused && cargaTotalTouched.value) validarCargaTotal()
+                },
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -235,9 +370,14 @@ fun DisciplinaFormScreen(
 
             OutlinedTextField(
                 value = cargaSemanal,
-                onValueChange = { cargaSemanal = it.filter { c -> c.isDigit() }; apiError = null },
-                label = { Text("Carga Horária Semanal") },
-                modifier = Modifier.fillMaxWidth(),
+                onValueChange = { cargaSemanal = it.filter { c -> c.isDigit() }; fieldErrors.remove("cargaSemanal") },
+                label = { Text("Carga Horária Semanal *") },
+                isError = fieldErrors["cargaSemanal"] != null,
+                supportingText = fieldErrors["cargaSemanal"]?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth().onFocusChanged { state ->
+                    if (state.isFocused) cargaSemanalTouched.value = true
+                    if (!state.isFocused && cargaSemanalTouched.value) validarCargaSemanal()
+                },
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -248,9 +388,14 @@ fun DisciplinaFormScreen(
 
             OutlinedTextField(
                 value = limiteFaltas,
-                onValueChange = { limiteFaltas = it.filter { c -> c.isDigit() }; apiError = null },
-                label = { Text("Limite de Faltas") },
-                modifier = Modifier.fillMaxWidth(),
+                onValueChange = { limiteFaltas = it.filter { c -> c.isDigit() }; fieldErrors.remove("limiteFaltas") },
+                label = { Text("Limite de Faltas *") },
+                isError = fieldErrors["limiteFaltas"] != null,
+                supportingText = fieldErrors["limiteFaltas"]?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth().onFocusChanged { state ->
+                    if (state.isFocused) limiteFaltasTouched.value = true
+                    if (!state.isFocused && limiteFaltasTouched.value) validarLimiteFaltas()
+                },
                 shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -268,12 +413,16 @@ fun DisciplinaFormScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             horarios.forEachIndexed { index, horario ->
-                HorarioLinha(
+                HorarioCard(
                     horario = horario,
                     index = index,
                     total = horarios.size,
                     onUpdate = { i, h -> horarios[i] = h },
-                    onRemove = { horarios.removeAt(it) }
+                    onRemove = { i ->
+                        val removido = horarios[i]
+                        horarios.removeAt(i)
+                        lastRemoval = i to removido
+                    }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -290,15 +439,6 @@ fun DisciplinaFormScreen(
                 Text("Adicionar Horário", color = Primary)
             }
 
-            apiError?.let {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 13.sp
-                )
-            }
-
             validationError?.let {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -312,6 +452,7 @@ fun DisciplinaFormScreen(
 
             Button(
                 onClick = {
+                    if (!validate()) return@Button
                     val request = CriarDisciplinaRequest(
                         nome = nome.trim(),
                         professor = professor.trim().ifBlank { null },
@@ -427,7 +568,7 @@ private fun TimeField(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HorarioLinha(
+private fun HorarioCard(
     horario: HorarioForm,
     index: Int,
     total: Int,
@@ -436,68 +577,125 @@ private fun HorarioLinha(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-            modifier = Modifier.weight(1f)
-        ) {
-            OutlinedTextField(
-                value = horario.diaSemana.abrev,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Dia") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
-                shape = RoundedCornerShape(12.dp),
-                colors = textFieldColors(),
-                singleLine = true
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                onRemove(index)
+                true
+            } else {
+                false
+            }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Alert, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
-                DiaSemana.entries.forEach { dia ->
-                    DropdownMenuItem(
-                        text = { Text(dia.abrev, maxLines = 1) },
-                        onClick = {
-                            onUpdate(index, horario.copy(diaSemana = dia))
-                            expanded = false
-                        }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Remover",
+                        tint = Color.White
+                    )
+                    Text(
+                        "Remover horário",
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
-        }
+        },
+        content = {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Border),
+                colors = CardDefaults.cardColors(containerColor = Surface)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = it },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = horario.diaSemana.abrev,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Dia") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = textFieldColors(),
+                                singleLine = true
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                DiaSemana.entries.forEach { dia ->
+                                    DropdownMenuItem(
+                                        text = { Text(dia.abrev, maxLines = 1) },
+                                        onClick = {
+                                            onUpdate(index, horario.copy(diaSemana = dia))
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
 
-        Spacer(modifier = Modifier.width(8.dp))
+                        if (total > 1) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            IconButton(onClick = { onRemove(index) }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Remover horário",
+                                    tint = Alert
+                                )
+                            }
+                        }
+                    }
 
-        TimeField(
-            value = horario.horaInicio.ifBlank { "08:00" },
-            label = "Início",
-            modifier = Modifier.weight(1f),
-            onTimeChanged = { onUpdate(index, horario.copy(horaInicio = it)) }
-        )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        TimeField(
-            value = horario.horaFim.ifBlank { "08:00" },
-            label = "Fim",
-            modifier = Modifier.weight(1f),
-            onTimeChanged = { onUpdate(index, horario.copy(horaFim = it)) }
-        )
-
-        if (total > 1) {
-            IconButton(onClick = { onRemove(index) }) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Remover horário",
-                    tint = Color(0xFFEF4444)
-                )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TimeField(
+                            value = horario.horaInicio.ifBlank { "08:00" },
+                            label = "Início",
+                            modifier = Modifier.weight(1f),
+                            onTimeChanged = { onUpdate(index, horario.copy(horaInicio = it)) }
+                        )
+                        TimeField(
+                            value = horario.horaFim.ifBlank { "08:00" },
+                            label = "Fim",
+                            modifier = Modifier.weight(1f),
+                            onTimeChanged = { onUpdate(index, horario.copy(horaFim = it)) }
+                        )
+                    }
+                }
             }
         }
-    }
+    )
 }

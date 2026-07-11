@@ -1,25 +1,35 @@
 package br.edu.utfpr.unihelper.disciplina.data.repository
 
+import br.edu.utfpr.unihelper.agenda.data.local.EventoDao
 import br.edu.utfpr.unihelper.core.local.SyncStatus
 import br.edu.utfpr.unihelper.core.network.safeApiCall
+import br.edu.utfpr.unihelper.core.sync.SyncScheduler
 import br.edu.utfpr.unihelper.disciplina.data.local.DisciplinaDao
 import br.edu.utfpr.unihelper.disciplina.data.local.DisciplinaEntity
 import br.edu.utfpr.unihelper.disciplina.data.local.HorarioDao
 import br.edu.utfpr.unihelper.disciplina.data.local.HorarioEntity
 import br.edu.utfpr.unihelper.disciplina.data.remote.AlterarFaltasRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.CriarDisciplinaRequest
+import br.edu.utfpr.unihelper.disciplina.data.remote.CriarHorarioRequest
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaApi
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class DisciplinaRepository(
     private val api: DisciplinaApi,
     private val disciplinaDao: DisciplinaDao,
-    private val horarioDao: HorarioDao
+    private val horarioDao: HorarioDao,
+    private val eventoDao: EventoDao,
+    private val syncScheduler: SyncScheduler
 ) {
     fun listarFlow(): Flow<List<DisciplinaEntity>> = disciplinaDao.listar()
 
+    fun listarDisciplinasFlow(): Flow<List<DisciplinaResponse>> =
+        disciplinaDao.listar().map { entities -> entities.map { it.toResponse() } }
+
     suspend fun listar(): Result<List<DisciplinaResponse>> {
+        syncPending()
         return safeApiCall { api.listar() }.onSuccess { disciplinas ->
             disciplinas.forEach { d ->
                 disciplinaDao.inserir(d.toEntity())
@@ -66,12 +76,10 @@ class DisciplinaRepository(
         }
 
         return safeApiCall { api.criar(request) }.onSuccess { response ->
-            disciplinaDao.deletarPorId(localId)
-            disciplinaDao.inserir(response.toEntity())
-            horarioDao.deletarPorDisciplina(localId)
-            response.horarios.forEach { horario ->
-                horarioDao.inserir(horario.toEntity(response.id))
-            }
+            disciplinaDao.substituirPorServerResponse(localId, response.toEntity())
+            horarioDao.substituirPorDisciplina(localId, response.horarios.map { it.toEntity(response.id) })
+        }.onFailure {
+            syncScheduler.agendar()
         }
     }
 
@@ -79,18 +87,20 @@ class DisciplinaRepository(
         disciplinaDao.atualizarStatus(id, SyncStatus.PENDING_UPDATE.name)
         return safeApiCall { api.atualizar(id, request) }.onSuccess { response ->
             disciplinaDao.inserir(response.toEntity())
-            horarioDao.deletarPorDisciplina(id)
-            response.horarios.forEach { horario ->
-                horarioDao.inserir(horario.toEntity(response.id))
-            }
+            horarioDao.substituirPorDisciplina(id, response.horarios.map { it.toEntity(response.id) })
+        }.onFailure {
+            syncScheduler.agendar()
         }
     }
 
     suspend fun excluir(id: String): Result<Unit> {
         disciplinaDao.atualizarStatus(id, SyncStatus.PENDING_DELETE.name)
         return safeApiCall { api.excluir(id) }.map { }.onSuccess {
+            eventoDao.deletarPorDisciplina(id)
             disciplinaDao.deletarPorId(id)
             horarioDao.deletarPorDisciplina(id)
+        }.onFailure {
+            syncScheduler.agendar()
         }
     }
 
@@ -105,14 +115,16 @@ class DisciplinaRepository(
         for (disciplina in pendentes) {
             when (disciplina.syncStatus) {
                 SyncStatus.PENDING_CREATE -> {
-                    val request = disciplina.toRequest()
+                    val horarios = horarioDao.listarPorDisciplinaSync(disciplina.id)
+                    val request = disciplina.toRequest(horarios)
                     safeApiCall { api.criar(request) }.onSuccess { response ->
-                        disciplinaDao.deletarPorId(disciplina.id)
-                        disciplinaDao.inserir(response.toEntity())
+                        disciplinaDao.substituirPorServerResponse(disciplina.id, response.toEntity())
+                        horarioDao.substituirPorDisciplina(disciplina.id, response.horarios.map { it.toEntity(response.id) })
                     }
                 }
                 SyncStatus.PENDING_UPDATE -> {
-                    val request = disciplina.toRequest()
+                    val horarios = horarioDao.listarPorDisciplinaSync(disciplina.id)
+                    val request = disciplina.toRequest(horarios)
                     safeApiCall { api.atualizar(disciplina.id, request) }.onSuccess {
                         disciplinaDao.atualizarStatus(disciplina.id, SyncStatus.SYNCED.name)
                     }
@@ -120,6 +132,7 @@ class DisciplinaRepository(
                 SyncStatus.PENDING_DELETE -> {
                     safeApiCall { api.excluir(disciplina.id) }.map { }.onSuccess {
                         disciplinaDao.deletarPorId(disciplina.id)
+                        horarioDao.deletarPorDisciplina(disciplina.id)
                     }
                 }
                 else -> {}
@@ -161,11 +174,17 @@ private fun DisciplinaEntity.toResponse() = DisciplinaResponse(
     horarios = emptyList()
 )
 
-private fun DisciplinaEntity.toRequest() = CriarDisciplinaRequest(
+private fun DisciplinaEntity.toRequest(horarios: List<HorarioEntity>) = CriarDisciplinaRequest(
     nome = nome,
     professor = professor,
     cargaHorariaTotal = cargaHorariaTotal,
     cargaHorariaSemanal = cargaHorariaSemanal,
     limiteFaltas = limiteFaltas,
-    horarios = emptyList()
+    horarios = horarios.map { it.toHorarioRequest() }
+)
+
+private fun HorarioEntity.toHorarioRequest() = CriarHorarioRequest(
+    diaSemana = diaSemana,
+    horaInicio = horaInicio,
+    horaFim = horaFim
 )

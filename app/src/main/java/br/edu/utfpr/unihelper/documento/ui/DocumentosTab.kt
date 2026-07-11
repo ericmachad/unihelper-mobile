@@ -1,7 +1,6 @@
 package br.edu.utfpr.unihelper.documento.ui
 
 import android.content.Context
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -37,6 +36,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,11 +57,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
+import br.edu.utfpr.unihelper.core.ui.UiEvent
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
 import br.edu.utfpr.unihelper.documento.data.remote.DocumentoResponse
 import br.edu.utfpr.unihelper.nota.ui.NotaViewModel
 import br.edu.utfpr.unihelper.nota.ui.NotasSection
 import br.edu.utfpr.unihelper.ui.theme.Background
+import kotlinx.coroutines.flow.collectLatest
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 import org.koin.androidx.compose.koinViewModel
@@ -78,6 +83,7 @@ fun DocumentosTab(
     val notaVM: NotaViewModel = koinViewModel()
     val docState by documentoVM.uiState.collectAsState()
     val deleteState by documentoVM.deleteState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var selectedDisciplinaId by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
@@ -126,6 +132,29 @@ fun DocumentosTab(
         }
     }
 
+    LaunchedEffect(Unit) {
+        documentoVM.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> { }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        notaVM.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> { }
+            }
+        }
+    }
+
+    SuccessDialogHandler(uiEvent = documentoVM.uiEvent)
+    SuccessDialogHandler(uiEvent = notaVM.uiEvent)
+    ErrorDialogHandler(uiEvent = documentoVM.uiEvent)
+    ErrorDialogHandler(uiEvent = notaVM.uiEvent)
+
     if (showDeleteDialog != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
@@ -150,12 +179,13 @@ fun DocumentosTab(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
         Spacer(modifier = Modifier.height(8.dp))
 
         ExposedDropdownMenuBox(
@@ -281,6 +311,8 @@ fun DocumentosTab(
         )
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+    SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 

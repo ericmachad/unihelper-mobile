@@ -30,18 +30,21 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import br.edu.utfpr.unihelper.agenda.data.remote.AgendaItemResponse
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
 import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Background
@@ -55,24 +58,24 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AgendaCRUDScreen(viewModel: AgendaViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.mensagemSucesso) {
-        uiState.mensagemSucesso?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.limparMensagens()
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is br.edu.utfpr.unihelper.core.ui.UiEvent.Snackbar ->
+                    snackbarHostState.showSnackbar(event.message)
+                else -> { }
+            }
         }
     }
 
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.limparMensagens()
-        }
-    }
+    SuccessDialogHandler(uiEvent = viewModel.uiEvent)
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent)
 
     if (uiState.showEventoBottomSheet) {
         EventoBottomSheet(
@@ -109,7 +112,7 @@ fun AgendaCRUDScreen(viewModel: AgendaViewModel = koinViewModel()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Carregando...", color = TextGray)
             }
-        } else if (uiState.eventos.isEmpty()) {
+        } else if (uiState.itens.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
@@ -123,20 +126,26 @@ fun AgendaCRUDScreen(viewModel: AgendaViewModel = koinViewModel()) {
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { viewModel.carregarProximos(isRefresh = true) },
+                modifier = Modifier.fillMaxSize()
             ) {
-                items(uiState.eventos) { evento ->
-                    AgendaCRUDCard(
-                        evento = evento,
-                        onEditar = { viewModel.abrirEditarEvento(evento) },
-                        onExcluir = { viewModel.confirmarExcluir(evento.id) }
-                    )
-                }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.itens) { item ->
+                        AgendaCRUDCard(
+                            item = item,
+                            onEditar = { viewModel.abrirEditarItem(item) },
+                            onExcluir = { viewModel.confirmarExcluir(item.id) }
+                        )
+                    }
 
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
         }
@@ -150,11 +159,11 @@ fun AgendaCRUDScreen(viewModel: AgendaViewModel = koinViewModel()) {
 
 @Composable
 private fun AgendaCRUDCard(
-    evento: AgendaItemResponse,
+    item: AgendaItemUi,
     onEditar: () -> Unit,
     onExcluir: () -> Unit
 ) {
-    val corBorda = when (evento.tipoEvento) {
+    val corBorda = when (item.tipoEvento) {
         "PROVA" -> Alert
         "TRABALHO" -> Accent
         else -> Success
@@ -177,7 +186,7 @@ private fun AgendaCRUDCard(
 
             Column(modifier = Modifier.weight(1f).padding(12.dp)) {
                 Text(
-                    text = evento.titulo,
+                    text = item.titulo,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Primary,
@@ -187,25 +196,34 @@ private fun AgendaCRUDCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Row {
                     Text(
-                        text = dataHoraCompacta(evento.dataHora, evento.dataHoraFim),
+                        text = dataHoraCompacta(item.dataHora, item.dataHoraFim),
                         fontSize = 12.sp,
                         color = TextGray
                     )
-                    if (evento.tipoEvento != "OUTRO") {
+                    if (item.tipoEvento != "OUTRO") {
                         Text(
-                            text = "  •  ${evento.tipoEvento}",
+                            text = "  •  ${item.tipoEvento}",
                             fontSize = 12.sp,
                             color = corBorda,
                             fontWeight = FontWeight.Medium
                         )
                     }
                 }
-                if (evento.disciplinaNome != null) {
+                if (item.disciplinaNome != null) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = evento.disciplinaNome,
+                        text = item.disciplinaNome,
                         fontSize = 12.sp,
                         color = Accent
+                    )
+                }
+                if (item.tipoOrigem == "AVALIACAO" && item.valor != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Nota: %.1f".format(item.valor),
+                        fontSize = 12.sp,
+                        color = if (item.valor >= 6f) Success else Alert,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }

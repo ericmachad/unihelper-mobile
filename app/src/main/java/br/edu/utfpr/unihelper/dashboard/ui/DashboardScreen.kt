@@ -1,6 +1,5 @@
 package br.edu.utfpr.unihelper.dashboard.ui
 
-import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -21,10 +20,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.TextButton
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -36,21 +32,23 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
 import br.edu.utfpr.unihelper.dashboard.data.DashboardEvent
 import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Alert
@@ -61,53 +59,20 @@ import br.edu.utfpr.unihelper.ui.theme.Success
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 import org.koin.androidx.compose.koinViewModel
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = koinViewModel(),
     refreshKey: Int = 0
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     LaunchedEffect(refreshKey) {
         viewModel.carregarMes()
-    }
-
-    if (uiState.showFcmDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissFcmDialog() },
-            title = { Text("FCM Token", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    if (uiState.isLoadingToken) {
-                        Text("Buscando token...", color = TextGray)
-                    } else if (uiState.fcmToken != null) {
-                        Text(
-                            text = uiState.fcmToken!!,
-                            fontSize = 11.sp,
-                            color = Primary
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        TextButton(onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FCM Token", uiState.fcmToken))
-                        }) {
-                            Text("Copiar", color = Accent)
-                        }
-                    } else {
-                        Text("Nenhum token encontrado", color = TextGray)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { viewModel.dismissFcmDialog() }) {
-                    Text("Fechar")
-                }
-            }
-        )
     }
 
     if (uiState.isLoading) {
@@ -117,109 +82,109 @@ fun DashboardScreen(
         return
     }
 
-    if (uiState.error != null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(uiState.error ?: "Erro", color = Alert)
-        }
-        return
-    }
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent)
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+    PullToRefreshBox(
+        isRefreshing = uiState.isRefreshing,
+        onRefresh = { viewModel.carregarMes(isRefresh = true) },
+        modifier = Modifier.fillMaxSize()
     ) {
-        item {
-            DashboardHeader(
-                mesAno = viewModel.formatarMesAno(),
-                onPreviousMonth = { viewModel.onMonthChange(false) },
-                onNextMonth = { viewModel.onMonthChange(true) }
-            )
-        }
-
-        item {
-            CalendarCard(
-                mesAtual = uiState.mesAtual,
-                selectedDate = uiState.selectedDate,
-                eventos = uiState.eventos,
-                onDateSelected = { viewModel.onDateSelected(it) }
-            )
-        }
-
-        item {
-            val filtered = if (uiState.selectedDate != null) {
-                uiState.eventos.filter { it.day == uiState.selectedDate }
-            } else {
-                uiState.eventos.sortedBy { it.dataHora }
-            }
-            val tituloLista = if (uiState.selectedDate != null) {
-                "Eventos do dia ${uiState.selectedDate}"
-            } else {
-                "Próximos Eventos"
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            item {
+                DashboardHeader(
+                    mesAno = viewModel.formatarMesAno(),
+                    onPreviousMonth = { viewModel.onMonthChange(false) },
+                    onNextMonth = { viewModel.onMonthChange(true) }
+                )
             }
 
-                    Text(
-                        text = tituloLista,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Primary
-                    )
+            item {
+                CalendarCard(
+                    mesAtual = uiState.mesAtual,
+                    selectedDate = uiState.selectedDate,
+                    eventos = uiState.eventos,
+                    onDateSelected = { viewModel.onDateSelected(it) }
+                )
+            }
 
-                    if (filtered.isEmpty()) {
-                        EmptyEvents()
-                    } else {
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        val pagerState = rememberPagerState(pageCount = { filtered.size })
-
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp),
-                    pageSpacing = 12.dp
-                ) { page ->
-                    EventCard(evento = filtered[page])
+            item {
+                val filtered = if (uiState.selectedDate != null) {
+                    uiState.eventos.filter { it.day == uiState.selectedDate }
+                } else {
+                    uiState.eventos.sortedBy { it.dataHora }
+                }
+                val tituloLista = if (uiState.selectedDate != null) {
+                    "Eventos do dia ${uiState.selectedDate}"
+                } else {
+                    "Próximos Eventos"
                 }
 
-                    if (filtered.size > 1) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            repeat(filtered.size) { index ->
-                                Box(
-                                    modifier = Modifier
-                                        .padding(horizontal = 4.dp)
-                                        .size(
-                                            width = if (pagerState.currentPage == index) 24.dp else 8.dp,
-                                            height = 8.dp
-                                        )
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(
-                                            if (pagerState.currentPage == index) Primary
-                                            else Color(0xFFD1D5DB)
-                                        )
-                                )
+                        Text(
+                            text = tituloLista,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Primary
+                        )
+
+                        if (filtered.isEmpty()) {
+                            EmptyEvents()
+                        } else {
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            val pagerState = rememberPagerState(pageCount = { filtered.size })
+                            val scope = rememberCoroutineScope()
+
+                            LaunchedEffect(filtered.size) {
+                                pagerState.animateScrollToPage(0)
+                            }
+
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp),
+                        pageSpacing = 12.dp
+                    ) { page ->
+                        EventCard(evento = filtered[page])
+                    }
+
+                        if (filtered.size > 1) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                repeat(filtered.size) { index ->
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(horizontal = 4.dp)
+                                            .size(
+                                                width = if (pagerState.currentPage == index) 24.dp else 8.dp,
+                                                height = 8.dp
+                                            )
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(
+                                                if (pagerState.currentPage == index) Primary
+                                                else Color(0xFFD1D5DB)
+                                            )
+                                            .clickable {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(index)
+                                                }
+                                            }
+                                    )
+                                }
                             }
                         }
-                    }
+                }
             }
-        }
 
-        item {
-            Button(
-                onClick = { viewModel.showFcmDialog() },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary)
-            ) {
-                Text("🔑 Ver FCM Token", color = Surface)
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
             }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

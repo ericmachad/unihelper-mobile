@@ -12,6 +12,9 @@ import br.edu.utfpr.unihelper.core.local.TokenStorage
 import br.edu.utfpr.unihelper.dispositivo.data.repository.DispositivoRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 class UnihelperFirebaseService : FirebaseMessagingService() {
@@ -97,14 +100,10 @@ class UnihelperFirebaseService : FirebaseMessagingService() {
 object ForegroundEventBus {
     data class PushMessage(val title: String, val body: String)
 
-    private val _events = mutableListOf<PushMessage>()
-    val events: List<PushMessage> get() = _events.toList()
+    private val _events = MutableSharedFlow<PushMessage>(replay = 0, extraBufferCapacity = 1)
+    val events: SharedFlow<PushMessage> = _events.asSharedFlow()
 
     fun newMessage(title: String, body: String) {
-        _events.add(PushMessage(title, body))
-    }
-
-    fun clear() {
-        _events.clear()
+        _events.tryEmit(PushMessage(title, body))
     }
 }

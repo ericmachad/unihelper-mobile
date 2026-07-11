@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.edu.utfpr.unihelper.ui.theme.Background
 import br.edu.utfpr.unihelper.ui.theme.Primary
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 
 private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
@@ -73,6 +74,8 @@ fun RegisterScreen(
             onRegisterSuccess()
         }
     }
+
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent, onNavigateToLogin = onNavigateToLogin)
 
     fun validarNomeCompleto(): Boolean {
         return when {
@@ -176,7 +179,7 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = nomeCompleto,
                 onValueChange = { nomeCompleto = it; fieldErrors.remove("nomeCompleto") },
-                label = { Text("Nome completo") },
+                label = { Text("Nome completo *") },
                 placeholder = { Text("Seu nome") },
                 isError = fieldErrors["nomeCompleto"] != null,
                 supportingText = fieldErrors["nomeCompleto"]?.let { { Text(it) } },
@@ -218,7 +221,7 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it; fieldErrors.remove("email") },
-                label = { Text("Email") },
+                label = { Text("Email *") },
                 placeholder = { Text("seu@email.com") },
                 isError = fieldErrors["email"] != null,
                 supportingText = fieldErrors["email"]?.let { { Text(it) } },
@@ -263,7 +266,7 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = senha,
                 onValueChange = { senha = it; fieldErrors.remove("senha") },
-                label = { Text("Senha") },
+                label = { Text("Senha *") },
                 placeholder = { Text("Mínimo 6 caracteres") },
                 isError = fieldErrors["senha"] != null,
                 supportingText = fieldErrors["senha"]?.let { { Text(it) } },

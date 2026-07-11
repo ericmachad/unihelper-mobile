@@ -7,6 +7,8 @@ import br.edu.utfpr.unihelper.core.local.TokenStorage
 import br.edu.utfpr.unihelper.core.sync.AuthEvent
 import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -49,10 +51,10 @@ class TokenRefreshHelper(
         api = retrofit.create(RefreshApi::class.java)
     }
 
-    fun refresh(): String? {
-        val refreshToken = tokenStorage.getRefreshToken() ?: return null
+    suspend fun refresh(): String? = withContext(Dispatchers.IO) {
+        val refreshToken = tokenStorage.getRefreshToken() ?: return@withContext null
 
-        return try {
+        try {
             val response = api.refreshSync(RefreshRequest(refreshToken))
             tokenStorage.saveToken(response.token)
             tokenStorage.saveRefreshToken(response.refreshToken)
@@ -64,7 +66,7 @@ class TokenRefreshHelper(
             response.token
         } catch (_: Exception) {
             tokenStorage.clearAll()
-            kotlinx.coroutines.runBlocking { database.limparTudo() }
+            database.limparTudo()
             authEventBus.emit(AuthEvent.LoggedOut)
             null
         }

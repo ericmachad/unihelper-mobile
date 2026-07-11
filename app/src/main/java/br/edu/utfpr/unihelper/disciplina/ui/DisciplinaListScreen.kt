@@ -79,7 +79,6 @@ fun DisciplinaTabContent(
     disciplinas: List<DisciplinaResponse>,
     isLoading: Boolean,
     isRefreshing: Boolean,
-    error: String?,
     faltasAtualizando: Set<String>,
     onNavigateToForm: () -> Unit,
     onIncrementFalta: (String) -> Unit,
@@ -87,9 +86,7 @@ fun DisciplinaTabContent(
     onRefresh: () -> Unit,
     onClickCard: (String) -> Unit,
     onEditClick: (String) -> Unit,
-    onDeleteClick: (String) -> Unit,
-    userName: String? = null,
-    userCurso: String? = null
+    onDeleteClick: (String) -> Unit
 ) {
     if (isLoading && disciplinas.isEmpty()) {
         Box(
@@ -97,29 +94,6 @@ fun DisciplinaTabContent(
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = Primary)
-        }
-        return
-    }
-
-    if (error != null && disciplinas.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = error,
-                    color = Alert,
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                androidx.compose.material3.OutlinedButton(
-                    onClick = onRefresh,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Tentar novamente")
-                }
-            }
         }
         return
     }
@@ -133,8 +107,6 @@ fun DisciplinaTabContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            item { ResumoCard(userName = userName, userCurso = userCurso) }
-
             if (disciplinas.isEmpty() && !isLoading) {
                 item {
                     Box(
@@ -169,49 +141,6 @@ fun DisciplinaTabContent(
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ResumoCard(
-    userName: String? = null,
-    userCurso: String? = null
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Primary)
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(20.dp)
-            ) {
-                Text(
-                    text = "Olá, ${userName ?: "Usuário"}",
-                    fontSize = 14.sp,
-                    color = Surface.copy(alpha = 0.7f)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = userCurso ?: "Sem curso definido",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Surface
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            Icon(
-                imageVector = Icons.Default.Book,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(100.dp)
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 8.dp, end = 8.dp),
-                tint = Surface.copy(alpha = 0.08f)
-            )
         }
     }
 }
@@ -380,7 +309,7 @@ private fun DisciplinaCard(
                         }
                         IconButton(
                             onClick = onIncrementFalta,
-                            enabled = !isFaltaLoading && disciplina.faltasRegistradas < disciplina.limiteFaltas,
+                            enabled = !isFaltaLoading && disciplina.faltasRegistradas < disciplina.cargaHorariaTotal,
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(

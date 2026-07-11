@@ -62,6 +62,7 @@ import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Border
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
 import br.edu.utfpr.unihelper.ui.theme.TextGray
 
 private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
@@ -87,6 +88,8 @@ fun LoginScreen(
             onLoginSuccess()
         }
     }
+
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent)
 
     fun validarEmail(): Boolean {
         val emailNormalizado = email.trim().lowercase()
@@ -217,7 +220,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it; fieldErrors.remove("email") },
-                label = { Text("E-mail") },
+                label = { Text("E-mail *") },
                 placeholder = { Text("seu@email.com") },
                 isError = fieldErrors["email"] != null,
                 supportingText = fieldErrors["email"]?.let { { Text(it) } },
@@ -259,7 +262,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = senha,
                 onValueChange = { senha = it; fieldErrors.remove("senha") },
-                label = { Text("Senha") },
+                label = { Text("Senha *") },
                 placeholder = { Text("••••••••") },
                 isError = fieldErrors["senha"] != null,
                 supportingText = fieldErrors["senha"]?.let { { Text(it) } },
@@ -292,13 +295,14 @@ fun LoginScreen(
                 singleLine = true
             )
 
-            // Erro da API
+    // Erro da API
             uiState.error?.let {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = it,
                     color = MaterialTheme.colorScheme.error,
-                    fontSize = 13.sp
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 

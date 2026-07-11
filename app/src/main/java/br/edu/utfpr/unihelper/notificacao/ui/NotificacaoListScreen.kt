@@ -29,6 +29,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -38,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,11 +52,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.edu.utfpr.unihelper.notificacao.data.remote.NotificacaoResponse
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
+import br.edu.utfpr.unihelper.core.ui.UiEvent
 import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
+import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 import java.time.Duration
 import java.time.LocalDateTime
@@ -66,75 +74,87 @@ fun NotificacaoListScreen(
     viewModel: NotificacaoViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let {
-            viewModel.limparError()
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> { }
+            }
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        TopAppBar(
-            title = { Text("Notificacoes", fontWeight = FontWeight.Bold) },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Voltar",
-                        tint = Primary
-                    )
-                }
-            },
-            actions = {
-                if (uiState.notificacoes.any { !it.lida }) {
-                    TextButton(onClick = { viewModel.marcarTodasComoLidas() }) {
-                        Text("Marcar todas como lidas", color = Accent, fontSize = 13.sp)
-                    }
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
-        )
+    SuccessDialogHandler(uiEvent = viewModel.uiEvent)
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent)
 
-        if (uiState.isLoading && uiState.notificacoes.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Carregando...", color = TextGray)
-            }
-        } else if (uiState.notificacoes.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = TextGray,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Nenhuma notificacao", color = TextGray, fontSize = 14.sp)
-                }
-            }
-        } else {
-            PullToRefreshBox(
-                isRefreshing = uiState.isLoading,
-                onRefresh = { viewModel.carregarNotificacoes() },
-                modifier = Modifier.fillMaxSize()
-            ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(uiState.notificacoes) { notificacao ->
-                        NotificacaoCard(
-                            notificacao = notificacao,
-                            onClick = {
-                                if (!notificacao.lida) {
-                                    viewModel.marcarComoLida(notificacao.id)
-                                }
-                            }
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Notificacoes", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar",
+                            tint = Primary
                         )
                     }
+                },
+                actions = {
+                    if (uiState.notificacoes.any { !it.lida }) {
+                        TextButton(onClick = { viewModel.marcarTodasComoLidas() }) {
+                            Text("Marcar todas como lidas", color = Accent, fontSize = 13.sp)
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+            )
+        }
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            if (uiState.isLoading && uiState.notificacoes.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Carregando...", color = TextGray)
+                }
+            } else if (uiState.notificacoes.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = TextGray,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Nenhuma notificacao", color = TextGray, fontSize = 14.sp)
+                    }
+                }
+            } else {
+                PullToRefreshBox(
+                    isRefreshing = uiState.isLoading,
+                    onRefresh = { viewModel.carregarNotificacoes() },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(uiState.notificacoes) { notificacao ->
+                            NotificacaoCard(
+                                notificacao = notificacao,
+                                onClick = {
+                                    if (!notificacao.lida) {
+                                        viewModel.marcarComoLida(notificacao.id)
+                                    }
+                                }
+                            )
+                        }
 
-                    item {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                     }
                 }
             }

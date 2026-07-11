@@ -19,7 +19,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,6 +33,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -48,11 +53,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import br.edu.utfpr.unihelper.avaliacao.ui.AvaliacaoViewModel
-import br.edu.utfpr.unihelper.avaliacao.ui.BlocoAvaliacao
+import br.edu.utfpr.unihelper.agenda.ui.BlocoEventos
+import br.edu.utfpr.unihelper.agenda.ui.EventosDisciplinaViewModel
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
+import br.edu.utfpr.unihelper.core.ui.UiEvent
 import br.edu.utfpr.unihelper.disciplina.data.remote.DiaSemana
 import br.edu.utfpr.unihelper.disciplina.data.remote.DisciplinaResponse
 import br.edu.utfpr.unihelper.ui.theme.Accent
+import kotlinx.coroutines.flow.collectLatest
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Background
 import br.edu.utfpr.unihelper.ui.theme.Border
@@ -86,11 +95,12 @@ fun DisciplinaDetalheScreen(
     val uiState by viewModel.uiState.collectAsState()
     val deleteState by viewModel.deleteState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val disciplina = uiState.disciplinas.find { it.id == disciplinaId }
 
-    val avaliacaoViewModel: AvaliacaoViewModel = koinViewModel()
-    val avaliacaoState by avaliacaoViewModel.uiState.collectAsState()
+    val eventosViewModel: EventosDisciplinaViewModel = koinViewModel()
+    val eventosState by eventosViewModel.uiState.collectAsState()
 
     LaunchedEffect(deleteState.sucesso) {
         if (deleteState.sucesso) {
@@ -98,6 +108,18 @@ fun DisciplinaDetalheScreen(
             onNavigateBack()
         }
     }
+
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> { }
+            }
+        }
+    }
+
+    SuccessDialogHandler(uiEvent = viewModel.uiEvent)
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent)
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -124,6 +146,7 @@ fun DisciplinaDetalheScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -137,6 +160,15 @@ fun DisciplinaDetalheScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Voltar"
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Excluir Disciplina",
+                            tint = Alert
                         )
                     }
                 },
@@ -245,18 +277,47 @@ fun DisciplinaDetalheScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         InfoItem(
                             label = "Média Atual",
-                            value = if (avaliacaoState.media != null) "%.1f".format(avaliacaoState.media) else "--",
+                            value = if (eventosState.media != null) "%.1f".format(eventosState.media) else "--",
                             modifier = Modifier.weight(1f)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text(
-                        text = "Faltas",
-                        fontSize = 11.sp,
-                        color = TextGray
-                    )
+                    val isFaltaLoading = disciplinaId in uiState.faltasAtualizando
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Faltas",
+                            fontSize = 11.sp,
+                            color = TextGray
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(
+                            onClick = { viewModel.alterarFaltas(disciplinaId, "DECREMENTAR") },
+                            enabled = !isFaltaLoading && disciplina.faltasRegistradas > 0,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Remove,
+                                contentDescription = "Remover falta",
+                                tint = Primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.alterarFaltas(disciplinaId, "INCREMENTAR") },
+                            enabled = !isFaltaLoading && disciplina.faltasRegistradas < disciplina.cargaHorariaTotal,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Registrar falta",
+                                tint = Primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "${disciplina.faltasRegistradas} / ${disciplina.limiteFaltas}",
@@ -338,7 +399,11 @@ fun DisciplinaDetalheScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            BlocoAvaliacao(disciplinaId = disciplinaId, viewModel = avaliacaoViewModel)
+            BlocoEventos(
+                disciplinaId = disciplinaId,
+                horarios = disciplina.horarios,
+                viewModel = eventosViewModel
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
         }

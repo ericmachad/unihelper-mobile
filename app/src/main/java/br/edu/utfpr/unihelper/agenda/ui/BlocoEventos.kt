@@ -1,4 +1,4 @@
-package br.edu.utfpr.unihelper.avaliacao.ui
+package br.edu.utfpr.unihelper.agenda.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,16 +8,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,55 +31,76 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.edu.utfpr.unihelper.agenda.data.local.EventoEntity
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
+import br.edu.utfpr.unihelper.core.ui.UiEvent
+import br.edu.utfpr.unihelper.disciplina.data.remote.HorarioResponse
 import br.edu.utfpr.unihelper.ui.theme.Accent
 import br.edu.utfpr.unihelper.ui.theme.Alert
-import br.edu.utfpr.unihelper.ui.theme.Background
-import br.edu.utfpr.unihelper.ui.theme.Border
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Success
 import br.edu.utfpr.unihelper.ui.theme.TextGray
+import kotlinx.coroutines.flow.collectLatest
+
 @Composable
-fun BlocoAvaliacao(
+fun BlocoEventos(
     disciplinaId: String,
-    viewModel: AvaliacaoViewModel
+    horarios: List<HorarioResponse> = emptyList(),
+    viewModel: EventosDisciplinaViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var feedback by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(disciplinaId) {
         viewModel.carregar(disciplinaId)
     }
 
-    // Dialog de criar/editar
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.Snackbar -> feedback = event.message
+                else -> { }
+            }
+        }
+    }
+
+    SuccessDialogHandler(uiEvent = viewModel.uiEvent)
+    ErrorDialogHandler(uiEvent = viewModel.uiEvent)
+
     if (uiState.showDialog) {
-        AvaliacaoDialog(
-            disciplinaId = disciplinaId,
-            avaliacao = uiState.avaliacaoParaEdicao,
-            onSalvar = { descricao, peso, data, valor, tipo ->
-                viewModel.criarOuAtualizar(disciplinaId, descricao, peso, data, valor, tipo)
+        val totalPesosAtual = uiState.eventos
+            .filter { it.id != uiState.eventoParaEdicao?.id }
+            .sumOf { it.peso?.toDouble() ?: 0.0 }
+            .toFloat()
+        EventoDialog(
+            totalPesosAtual = totalPesosAtual,
+            horarios = horarios,
+            evento = uiState.eventoParaEdicao,
+            onSalvar = { descricao, peso, data, horaInicio, horaFim, valor, tipo ->
+                viewModel.criarOuAtualizar(disciplinaId, descricao, peso, data, horaInicio, horaFim, valor, tipo)
             },
             onDismiss = { viewModel.fecharDialog() }
         )
     }
 
-    // Bottom sheet de lançar nota
-    uiState.avaliacaoParaNota?.let { avaliacao ->
+    uiState.eventoParaNota?.let { evento ->
         if (uiState.showBottomSheet) {
             LancarNotaBottomSheet(
-                avaliacao = avaliacao,
+                evento = evento,
                 onSalvar = { valor -> viewModel.lancarNota(valor) },
                 onDismiss = { viewModel.fecharBottomSheet() }
             )
         }
     }
 
-    // Dialog de confirmar exclusão
     if (uiState.showDeleteDialog) {
-        uiState.avaliacaoParaDeletar?.let { avaliacao ->
+        uiState.eventoParaDeletar?.let { evento ->
             AlertDialog(
                 onDismissRequest = { viewModel.fecharDialogDelete() },
                 title = { Text("Excluir Avaliação") },
                 text = {
-                    Text("Tem certeza que deseja excluir \"${avaliacao.descricao}\"? Esta ação não pode ser desfeita.")
+                    Text("Tem certeza que deseja excluir \"${evento.titulo}\"? Esta ação não pode ser desfeita.")
                 },
                 confirmButton = {
                     TextButton(
@@ -99,7 +119,6 @@ fun BlocoAvaliacao(
         }
     }
 
-    // Dialog de configurar média mínima
     if (uiState.showConfigMediaDialog) {
         ConfigMediaMinimaDialog(
             valorAtual = uiState.mediaMinima,
@@ -141,7 +160,7 @@ fun BlocoAvaliacao(
                 fontSize = 13.sp,
                 color = TextGray
             )
-        } else if (uiState.avaliacoes.isEmpty()) {
+        } else if (uiState.eventos.isEmpty()) {
             Text(
                 text = "Nenhuma avaliação cadastrada",
                 fontSize = 13.sp,
@@ -149,13 +168,13 @@ fun BlocoAvaliacao(
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         } else {
-            uiState.avaliacoes.forEach { avaliacao ->
-                AvaliacaoCard(
-                    avaliacao = avaliacao,
+            uiState.eventos.forEach { evento ->
+                EventoCard(
+                    evento = evento,
                     mediaMinima = uiState.mediaMinima,
-                    onEditar = { viewModel.abrirDialogEditar(avaliacao) },
-                    onLancarNota = { viewModel.abrirBottomSheetNota(avaliacao) },
-                    onExcluir = { viewModel.abrirDialogDelete(avaliacao) },
+                    onEditar = { viewModel.abrirDialogEditar(evento) },
+                    onLancarNota = { viewModel.abrirBottomSheetNota(evento) },
+                    onExcluir = { viewModel.abrirDialogDelete(evento) },
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
@@ -163,7 +182,6 @@ fun BlocoAvaliacao(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Footer com estatísticas
         val media = uiState.media
         val notaMinima = uiState.notaMinimaNecessaria
         val status = uiState.statusAprovacao
@@ -239,8 +257,7 @@ fun BlocoAvaliacao(
             )
         }
 
-        // Mensagens de feedback
-        uiState.mensagemSucesso?.let { msg ->
+        feedback?.let { msg ->
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = msg,
@@ -249,95 +266,5 @@ fun BlocoAvaliacao(
                 fontWeight = FontWeight.Medium
             )
         }
-
-        uiState.error?.let { error ->
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = error,
-                fontSize = 12.sp,
-                color = Alert
-            )
-        }
     }
-}
-
-@Composable
-private fun ConfigMediaMinimaDialog(
-    valorAtual: Float,
-    onSalvar: (Float) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var textValue by remember { mutableStateOf("%.1f".format(valorAtual)) }
-    var hasError by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(16.dp),
-        title = {
-            Text(
-                text = "Média Mínima",
-                fontWeight = FontWeight.Bold,
-                color = Primary
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text = "Defina a nota mínima para aprovação (1 a 10):",
-                    fontSize = 14.sp,
-                    color = TextGray
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = textValue,
-                    onValueChange = { value ->
-                        val filtered = value.filter { c: Char -> c.isDigit() || c == '.' }
-                        if (filtered.count { it == '.' } <= 1) {
-                            textValue = filtered
-                            val parsed = filtered.toFloatOrNull()
-                            hasError = parsed != null && (parsed < 1f || parsed > 10f)
-                        }
-                    },
-                    isError = hasError,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Border,
-                        focusedBorderColor = Primary,
-                        unfocusedContainerColor = Background
-                    ),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (hasError) {
-                    Text(
-                        text = "Valor deve estar entre 1 e 10",
-                        fontSize = 12.sp,
-                        color = Alert,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val parsed = textValue.toFloatOrNull()
-                    if (parsed != null && parsed in 1f..10f) {
-                        onSalvar(parsed)
-                    } else {
-                        hasError = true
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary)
-            ) {
-                Text("Salvar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = TextGray)
-            }
-        }
-    )
 }

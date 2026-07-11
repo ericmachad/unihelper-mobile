@@ -7,25 +7,18 @@ import br.edu.utfpr.unihelper.auth.data.remote.AuthResponse
 import br.edu.utfpr.unihelper.auth.data.remote.LoginRequest
 import br.edu.utfpr.unihelper.auth.data.remote.RefreshRequest
 import br.edu.utfpr.unihelper.auth.data.remote.RegisterRequest
-import br.edu.utfpr.unihelper.core.local.AppDatabase
-import br.edu.utfpr.unihelper.core.local.MediaConfig
-import br.edu.utfpr.unihelper.core.local.TokenStorage
+import br.edu.utfpr.unihelper.core.local.SessionManager
 import br.edu.utfpr.unihelper.core.network.safeApiCall
-import br.edu.utfpr.unihelper.core.sync.AuthEvent
-import br.edu.utfpr.unihelper.core.sync.AuthEventBus
 import br.edu.utfpr.unihelper.dispositivo.data.repository.DispositivoRepository
 
 class AuthRepository(
     private val authApi: AuthApi,
-    private val tokenStorage: TokenStorage,
-    private val database: AppDatabase,
-    private val dispositivoRepository: DispositivoRepository,
-    private val authEventBus: AuthEventBus,
-    private val mediaConfig: MediaConfig
+    private val sessionManager: SessionManager,
+    private val dispositivoRepository: DispositivoRepository
 ) {
     suspend fun login(email: String, senha: String): Result<AuthResponse> = safeApiCall {
         val response = authApi.login(LoginRequest(email, senha))
-        persistAuth(response)
+        sessionManager.persistAuth(response)
         enviarFcmTokenSeExistir()
         response
     }
@@ -40,55 +33,42 @@ class AuthRepository(
         val response = authApi.register(
             RegisterRequest(nomeCompleto, apelido, email, senha, curso)
         )
-        persistAuth(response)
+        sessionManager.persistAuth(response)
         enviarFcmTokenSeExistir()
         response
     }
 
     suspend fun refreshSession(): Result<AuthResponse> {
-        val refreshToken = tokenStorage.getRefreshToken() ?: return Result.failure(
-            Exception("Sessão não encontrada")
-        )
+        val refreshToken = sessionManager.run {
+            getCachedUser()?.refreshToken ?: return Result.failure(
+                Exception("Sessão não encontrada")
+            )
+        }
         return safeApiCall {
             val response = authApi.refresh(RefreshRequest(refreshToken))
-            persistAuth(response)
+            sessionManager.persistAuth(response)
             response
         }
     }
 
-    fun hasSession(): Boolean = tokenStorage.hasSession()
+    fun hasSession(): Boolean = sessionManager.hasSession()
 
-    fun getCachedUser(): AuthResponse? {
-        val id = tokenStorage.getIdUsuario() ?: return null
-        return AuthResponse(
-            token = tokenStorage.getToken() ?: return null,
-            refreshToken = tokenStorage.getRefreshToken() ?: return null,
-            idUsuario = id,
-            nomeCompleto = tokenStorage.getNomeCompleto() ?: return null,
-            apelido = tokenStorage.getApelido(),
-            email = tokenStorage.getEmail() ?: return null,
-            curso = tokenStorage.getCurso()
-        )
-    }
+    fun getCachedUser(): AuthResponse? = sessionManager.getCachedUser()
 
     suspend fun logout() {
-        tokenStorage.clearAll()
-        database.limparTudo()
-        mediaConfig.clear()
-        authEventBus.emit(AuthEvent.LoggedOut)
+        runCatching { dispositivoRepository.removerToken() }
+        sessionManager.clearSession()
     }
 
     suspend fun logoutComApi(): Result<Unit> = safeApiCall {
+        runCatching { dispositivoRepository.removerToken() }
         authApi.logout()
-        tokenStorage.clearAll()
-        database.limparTudo()
-        mediaConfig.clear()
-        authEventBus.emit(AuthEvent.LoggedOut)
+        sessionManager.clearSession()
     }
 
     suspend fun getMe(): Result<AuthResponse> = safeApiCall {
         val response = authApi.me()
-        persistAuth(response)
+        sessionManager.persistAuth(response)
         response
     }
 
@@ -100,7 +80,7 @@ class AuthRepository(
         val response = authApi.atualizarPerfil(
             AtualizarPerfilRequest(nomeCompleto, apelido, curso)
         )
-        persistAuth(response)
+        sessionManager.persistAuth(response)
         response
     }
 
@@ -111,19 +91,8 @@ class AuthRepository(
         authApi.alterarSenha(AlterarSenhaRequest(senhaAtual, novaSenha))
     }
 
-    private fun persistAuth(response: AuthResponse) {
-        tokenStorage.saveToken(response.token)
-        tokenStorage.saveRefreshToken(response.refreshToken)
-        tokenStorage.saveIdUsuario(response.idUsuario)
-        tokenStorage.saveNomeCompleto(response.nomeCompleto)
-        tokenStorage.saveApelido(response.apelido)
-        tokenStorage.saveEmail(response.email)
-        tokenStorage.saveCurso(response.curso)
-        authEventBus.emit(AuthEvent.LoggedIn(response))
-    }
-
     suspend fun enviarFcmTokenSeExistir() {
-        val fcmToken = tokenStorage.getFcmToken() ?: return
+        val fcmToken = sessionManager.getFcmToken() ?: return
         runCatching { dispositivoRepository.registrarToken(fcmToken) }
     }
 }

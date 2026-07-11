@@ -52,12 +52,11 @@ import br.edu.utfpr.unihelper.ui.theme.Border
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
-import java.text.SimpleDateFormat
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,13 +90,12 @@ fun EventoBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val tipos = listOf("PROVA", "TRABALHO", "OUTRO")
     val precisaDisciplina = tipo == "PROVA" || tipo == "TRABALHO"
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     val displayDateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = try {
-                dateFormat.parse(data)?.time
+                LocalDate.parse(data).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
             } catch (_: Exception) {
                 System.currentTimeMillis()
             }
@@ -106,8 +104,9 @@ fun EventoBottomSheet(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        data = dateFormat.format(Date(it))
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val localDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+                        data = localDate.toString()
                     }
                     showDatePicker = false
                 }) { Text("OK") }
@@ -167,7 +166,7 @@ fun EventoBottomSheet(
             OutlinedTextField(
                 value = titulo,
                 onValueChange = { titulo = it; tituloError = false },
-                label = { Text("Título") },
+                label = { Text("Título *") },
                 isError = tituloError,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -201,7 +200,7 @@ fun EventoBottomSheet(
                 OutlinedTextField(
                     value = pesoText,
                     onValueChange = { pesoText = it; pesoError = false },
-                    label = { Text("Peso") },
+                    label = { Text("Peso *") },
                     isError = pesoError,
                     supportingText = if (pesoError) {{ Text("Peso deve ser maior que zero") }} else null,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -225,7 +224,7 @@ fun EventoBottomSheet(
                         LocalDate.parse(data).format(displayDateFormat)
                     } catch (_: Exception) { data },
                     onValueChange = {},
-                    label = { Text("Data") },
+                    label = { Text("Data *") },
                     readOnly = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -250,7 +249,7 @@ fun EventoBottomSheet(
                     OutlinedTextField(
                         value = horaInicio,
                         onValueChange = {},
-                        label = { Text("Início") },
+                        label = { Text("Início *") },
                         readOnly = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -273,7 +272,7 @@ fun EventoBottomSheet(
                     OutlinedTextField(
                         value = horaFim,
                         onValueChange = {},
-                        label = { Text("Fim") },
+                        label = { Text("Fim *") },
                         readOnly = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -413,7 +412,7 @@ private fun DisciplinaDropdown(
             value = selectedNome,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Disciplina") },
+            label = { Text("Disciplina *") },
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = Border,

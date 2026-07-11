@@ -10,7 +10,7 @@ import retrofit2.Retrofit
 val notaModule = module {
     single<NotaApi> { get<Retrofit>().create(NotaApi::class.java) }
 
-    single { NotaRepository(get()) }
+    single { NotaRepository(get(), get(), get()) }
 
     viewModel { NotaViewModel(get()) }
 }

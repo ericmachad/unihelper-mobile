@@ -7,7 +7,6 @@ import android.os.Build
 import br.edu.utfpr.unihelper.agenda.di.agendaModule
 import br.edu.utfpr.unihelper.auth.di.authModule
 import br.edu.utfpr.unihelper.dashboard.di.dashboardModule
-import br.edu.utfpr.unihelper.avaliacao.di.avaliacaoModule
 import br.edu.utfpr.unihelper.core.di.databaseModule
 import br.edu.utfpr.unihelper.core.di.networkModule
 import br.edu.utfpr.unihelper.core.di.syncModule
@@ -28,7 +27,7 @@ class UnihelperApp : Application() {
         FirebaseApp.initializeApp(this)
         startKoin {
             androidContext(this@UnihelperApp)
-            modules(networkModule, databaseModule, syncModule, authModule, disciplinaModule, avaliacaoModule, agendaModule, dashboardModule, documentoModule, notaModule, notificacaoModule, dispositivoModule)
+            modules(networkModule, databaseModule, syncModule, authModule, disciplinaModule, agendaModule, dashboardModule, documentoModule, notaModule, notificacaoModule, dispositivoModule)
         }
 
         TokenStorage.instance = org.koin.core.context.GlobalContext.get().get()

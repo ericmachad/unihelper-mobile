@@ -5,13 +5,14 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DisciplinaDao {
 
-    @Query("SELECT * FROM disciplinas ORDER BY nome ASC")
+    @Query("SELECT * FROM disciplinas WHERE syncStatus != 'PENDING_DELETE' ORDER BY nome ASC")
     fun listar(): Flow<List<DisciplinaEntity>>
 
     @Query("SELECT * FROM disciplinas WHERE id = :id")
@@ -46,4 +47,10 @@ interface DisciplinaDao {
         syncStatus: String = "SYNCED",
         updatedAt: Long = System.currentTimeMillis()
     )
+
+    @Transaction
+    suspend fun substituirPorServerResponse(localId: String, serverEntity: DisciplinaEntity) {
+        deletarPorId(localId)
+        inserir(serverEntity)
+    }
 }

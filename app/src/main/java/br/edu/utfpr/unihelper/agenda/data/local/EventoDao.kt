@@ -14,6 +14,9 @@ interface EventoDao {
     @Query("SELECT * FROM eventos WHERE dataHoraInicio >= :dataInicio AND dataHoraInicio <= :dataFim ORDER BY dataHoraInicio ASC")
     fun listar(dataInicio: String, dataFim: String): Flow<List<EventoEntity>>
 
+    @Query("SELECT * FROM eventos WHERE disciplinaId = :disciplinaId ORDER BY dataHoraInicio ASC")
+    fun listarPorDisciplina(disciplinaId: String): Flow<List<EventoEntity>>
+
     @Query("SELECT * FROM eventos WHERE id = :id")
     suspend fun buscarPorId(id: String): EventoEntity?
 
@@ -34,6 +37,9 @@ interface EventoDao {
 
     @Query("DELETE FROM eventos WHERE dataHoraInicio >= :dataInicio AND dataHoraInicio <= :dataFim")
     suspend fun deletarPorPeriodo(dataInicio: String, dataFim: String)
+
+    @Query("DELETE FROM eventos WHERE disciplinaId = :disciplinaId")
+    suspend fun deletarPorDisciplina(disciplinaId: String)
 
     @Query("SELECT * FROM eventos WHERE syncStatus != 'SYNCED'")
     suspend fun listarPendentes(): List<EventoEntity>

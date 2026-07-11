@@ -1,6 +1,12 @@
 package br.edu.utfpr.unihelper.disciplina.data.remote
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
 enum class DiaSemana(val valor: Int, val label: String, val abrev: String) {
     SEGUNDA(2, "Segunda", "Seg"),
@@ -14,12 +20,21 @@ enum class DiaSemana(val valor: Int, val label: String, val abrev: String) {
     }
 }
 
+object HoraMinutoSerializer : KSerializer<String> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("HoraMinuto", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: String) = encoder.encodeString(value)
+    override fun deserialize(decoder: Decoder): String {
+        val raw = decoder.decodeString()
+        return raw.substringBeforeLast(":").ifEmpty { raw }
+    }
+}
+
 @Serializable
 data class HorarioResponse(
     val id: String,
     val diaSemana: Int,
-    val horaInicio: String,
-    val horaFim: String
+    @Serializable(with = HoraMinutoSerializer::class) val horaInicio: String,
+    @Serializable(with = HoraMinutoSerializer::class) val horaFim: String
 )
 
 @Serializable
@@ -39,8 +54,8 @@ data class DisciplinaResponse(
 @Serializable
 data class CriarHorarioRequest(
     val diaSemana: Int,
-    val horaInicio: String,
-    val horaFim: String
+    @Serializable(with = HoraMinutoSerializer::class) val horaInicio: String,
+    @Serializable(with = HoraMinutoSerializer::class) val horaFim: String
 )
 
 @Serializable

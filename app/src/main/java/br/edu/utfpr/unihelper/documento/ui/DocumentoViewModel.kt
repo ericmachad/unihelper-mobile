@@ -4,17 +4,25 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.edu.utfpr.unihelper.core.network.ApiException
+import br.edu.utfpr.unihelper.core.network.toErrorDialog
+import br.edu.utfpr.unihelper.core.ui.UiEvent
+import br.edu.utfpr.unihelper.documento.data.local.DocumentoEntity
 import br.edu.utfpr.unihelper.documento.data.remote.DocumentoResponse
 import br.edu.utfpr.unihelper.documento.data.repository.DocumentoRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class DocumentoUiState(
     val documentos: List<DocumentoResponse> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null,
     val uploadProgress: Boolean = false,
     val downloadBytes: ByteArray? = null,
     val downloadMimeType: String? = null,
@@ -23,8 +31,7 @@ data class DocumentoUiState(
 
 data class DocumentoDeleteState(
     val isLoading: Boolean = false,
-    val sucesso: Boolean = false,
-    val error: String? = null
+    val sucesso: Boolean = false
 )
 
 class DocumentoViewModel(
@@ -37,26 +44,38 @@ class DocumentoViewModel(
     private val _deleteState = MutableStateFlow(DocumentoDeleteState())
     val deleteState: StateFlow<DocumentoDeleteState> = _deleteState.asStateFlow()
 
+    private val _uiEvent = MutableSharedFlow<UiEvent>(extraBufferCapacity = 1)
+    val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
+
+    private var documentosFlowJob: Job? = null
+    private var currentDisciplinaId: String? = null
+
     fun carregarDocumentos(disciplinaId: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            repository.listar(disciplinaId)
-                .onSuccess {
-                    _uiState.value = _uiState.value.copy(
-                        documentos = it, isLoading = false
-                    )
+        if (disciplinaId == currentDisciplinaId) return
+        currentDisciplinaId = disciplinaId
+
+        documentosFlowJob?.cancel()
+        documentosFlowJob = viewModelScope.launch {
+            repository.listarFlow(disciplinaId).collect { entities ->
+                _uiState.update {
+                    it.copy(documentos = entities.map { entity -> entity.toResponse() }, isLoading = false)
                 }
+            }
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            repository.listar(disciplinaId)
                 .onFailure {
-                    _uiState.value = _uiState.value.copy(
-                        error = it.message, isLoading = false
-                    )
+                    _uiState.update { it.copy(isLoading = false) }
+                    _uiEvent.tryEmit(UiEvent.Snackbar("Não foi possível atualizar. Dados offline exibidos."))
                 }
         }
     }
 
     fun upload(context: Context, disciplinaId: String, uri: Uri, descricao: String?) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(uploadProgress = true, error = null)
+            _uiState.value = _uiState.value.copy(uploadProgress = true)
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
                 val bytes = inputStream?.readBytes() ?: return@launch
@@ -68,17 +87,21 @@ class DocumentoViewModel(
                 repository.upload(disciplinaId, bytes, fileName, mimeType, descricao)
                     .onSuccess {
                         _uiState.value = _uiState.value.copy(uploadProgress = false)
+                        _uiEvent.tryEmit(UiEvent.SuccessDialog("Documento enviado"))
                         carregarDocumentos(disciplinaId)
                     }
-                    .onFailure {
-                        _uiState.value = _uiState.value.copy(
-                            error = it.message, uploadProgress = false
-                        )
+                    .onFailure { error ->
+                        _uiState.value = _uiState.value.copy(uploadProgress = false)
+                        if (error is ApiException && error.status == 0) {
+                            _uiEvent.tryEmit(UiEvent.SuccessDialog("Documento enviado"))
+                            carregarDocumentos(disciplinaId)
+                        } else {
+                            _uiEvent.tryEmit(error.toErrorDialog())
+                        }
                     }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    error = e.message ?: "Erro ao ler arquivo", uploadProgress = false
-                )
+                _uiState.value = _uiState.value.copy(uploadProgress = false)
+                _uiEvent.tryEmit(UiEvent.Snackbar(e.message ?: "Erro ao ler arquivo"))
             }
         }
     }
@@ -96,9 +119,8 @@ class DocumentoViewModel(
                     )
                 }
                 .onFailure {
-                    _uiState.value = _uiState.value.copy(
-                        error = it.message, isLoading = false
-                    )
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    _uiEvent.tryEmit(it.toErrorDialog())
                 }
         }
     }
@@ -115,10 +137,15 @@ class DocumentoViewModel(
             repository.deletar(disciplinaId, documentoId)
                 .onSuccess {
                     _deleteState.value = DocumentoDeleteState(sucesso = true)
-                    carregarDocumentos(disciplinaId)
+                    _uiEvent.tryEmit(UiEvent.SuccessDialog("Documento excluído"))
                 }
-                .onFailure {
-                    _deleteState.value = DocumentoDeleteState(error = it.message)
+                .onFailure { error ->
+                    _deleteState.value = DocumentoDeleteState()
+                    if (error is ApiException && error.status == 0) {
+                        _uiEvent.tryEmit(UiEvent.SuccessDialog("Documento excluído"))
+                    } else {
+                        _uiEvent.tryEmit(error.toErrorDialog())
+                    }
                 }
         }
     }
@@ -136,3 +163,12 @@ class DocumentoViewModel(
         }
     }
 }
+
+private fun DocumentoEntity.toResponse() = DocumentoResponse(
+    id = id,
+    nomeArquivo = nomeArquivo,
+    mimeType = mimeType,
+    tamanhoBytes = tamanhoBytes,
+    descricao = descricao,
+    criadoEm = criadoEm
+)

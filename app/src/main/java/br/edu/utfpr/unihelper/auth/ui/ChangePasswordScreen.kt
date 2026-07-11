@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -38,10 +41,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
+import br.edu.utfpr.unihelper.core.ui.UiEvent
 import br.edu.utfpr.unihelper.ui.theme.Alert
 import br.edu.utfpr.unihelper.ui.theme.Primary
 import br.edu.utfpr.unihelper.ui.theme.Surface
 import br.edu.utfpr.unihelper.ui.theme.TextGray
+import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +59,7 @@ fun ChangePasswordScreen(
     val activity = LocalActivity.current as ComponentActivity
     val authViewModel: AuthViewModel = koinViewModel(viewModelStoreOwner = activity)
     val state by authViewModel.changePasswordState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var senhaAtual by remember { mutableStateOf("") }
     var novaSenha by remember { mutableStateOf("") }
@@ -64,7 +72,19 @@ fun ChangePasswordScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        authViewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> { }
+            }
+        }
+    }
+
+    SuccessDialogHandler(uiEvent = authViewModel.uiEvent)
+    ErrorDialogHandler(uiEvent = authViewModel.uiEvent)
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -91,6 +111,7 @@ fun ChangePasswordScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -135,15 +156,6 @@ fun ChangePasswordScreen(
             )
 
             localError?.let {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = it,
-                    color = Alert,
-                    fontSize = 13.sp
-                )
-            }
-
-            state.error?.let {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = it,

@@ -19,6 +19,9 @@ interface DocumentoDao {
     @Query("SELECT * FROM documentos WHERE id = :id")
     suspend fun buscarPorId(id: String): DocumentoEntity?
 
+    @Query("SELECT * FROM documentos WHERE syncStatus != 'SYNCED'")
+    suspend fun listarPendentes(): List<DocumentoEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun inserir(documento: DocumentoEntity)
 

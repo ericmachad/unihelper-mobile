@@ -35,8 +35,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import br.edu.utfpr.unihelper.core.ui.ErrorDialogHandler
+import br.edu.utfpr.unihelper.core.ui.SuccessDialogHandler
+import br.edu.utfpr.unihelper.core.ui.UiEvent
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -49,7 +54,6 @@ import br.edu.utfpr.unihelper.agenda.ui.AgendaCRUDScreen
 import br.edu.utfpr.unihelper.agenda.ui.AgendaViewModel
 import br.edu.utfpr.unihelper.auth.ui.AuthViewModel
 import br.edu.utfpr.unihelper.auth.ui.ProfileScreen
-import br.edu.utfpr.unihelper.core.push.ForegroundEventBus
 import br.edu.utfpr.unihelper.dashboard.ui.DashboardScreen
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaTabContent
 import br.edu.utfpr.unihelper.disciplina.ui.DisciplinaViewModel
@@ -81,7 +85,7 @@ private val navItems = listOf(
 fun HomeScreen(
     navController: NavHostController
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
 
     val activity = LocalActivity.current as ComponentActivity
     val disciplinaViewModel: DisciplinaViewModel = koinViewModel(viewModelStoreOwner = activity)
@@ -91,7 +95,6 @@ fun HomeScreen(
     val authState by authViewModel.uiState.collectAsState()
     val user = authState.user
 
-    val deleteState by disciplinaViewModel.deleteState.collectAsState()
     val agendaViewModel: AgendaViewModel = koinViewModel(viewModelStoreOwner = activity)
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -112,36 +115,17 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(deleteState.sucesso, deleteState.error) {
-        when {
-            deleteState.sucesso -> {
-                snackbarHostState.showSnackbar("Disciplina excluída")
-                disciplinaViewModel.limparDeleteState()
-            }
-            deleteState.error != null -> {
-                snackbarHostState.showSnackbar(deleteState.error ?: "Erro ao excluir")
-                disciplinaViewModel.limparDeleteState()
-            }
-        }
-    }
-
-    LaunchedEffect(disciplinaState.error) {
-        disciplinaState.error?.let { msg ->
-            if (disciplinaState.disciplinas.isNotEmpty()) {
-                snackbarHostState.showSnackbar(msg)
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
-        while (true) {
-            ForegroundEventBus.events.forEach { msg ->
-                snackbarHostState.showSnackbar("${msg.title}: ${msg.body}")
+        disciplinaViewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> { }
             }
-            ForegroundEventBus.clear()
-            kotlinx.coroutines.delay(1000)
         }
     }
+
+    SuccessDialogHandler(uiEvent = disciplinaViewModel.uiEvent)
+    ErrorDialogHandler(uiEvent = disciplinaViewModel.uiEvent)
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -271,7 +255,6 @@ fun HomeScreen(
                     disciplinas = disciplinaState.disciplinas,
                     isLoading = disciplinaState.isLoading,
                     isRefreshing = disciplinaState.isRefreshing,
-                    error = disciplinaState.error,
                     faltasAtualizando = disciplinaState.faltasAtualizando,
                     onNavigateToForm = { navController.navigate("disciplina/criar") },
                     onIncrementFalta = { disciplinaViewModel.alterarFaltas(it, "INCREMENTAR") },
@@ -279,9 +262,7 @@ fun HomeScreen(
                     onRefresh = { disciplinaViewModel.listar(isRefresh = true) },
                     onClickCard = { id -> navController.navigate("disciplina/$id") },
                     onEditClick = { id -> navController.navigate("disciplina/editar/$id") },
-                    onDeleteClick = { id -> disciplinaViewModel.excluir(id) },
-                    userName = user?.nomeCompleto,
-                    userCurso = user?.curso
+                    onDeleteClick = { id -> disciplinaViewModel.excluir(id) }
                 )
                 2 -> AgendaCRUDScreen(viewModel = agendaViewModel)
                 3 -> DocumentosTab(
