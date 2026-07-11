@@ -53,6 +53,7 @@ class AuthRepositoryTest {
     fun setup() {
         repository = AuthRepository(authApi, sessionManager, dispositivoRepository)
         every { sessionManager.persistAuth(any()) } just runs
+        every { sessionManager.clearPendingConfirmation() } just runs
         every { sessionManager.getFcmToken() } returns null
         coEvery { dispositivoRepository.removerToken() } returns Result.success(Unit)
     }

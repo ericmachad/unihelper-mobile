@@ -157,6 +157,7 @@ class AuthViewModelTest {
     @Test
     fun `checkSession sets invalid when no session`() = runTest(testDispatcher) {
         every { repository.hasSession() } returns false
+        every { repository.hasPendingConfirmation() } returns false
 
         viewModel.checkSession()
 

@@ -83,7 +83,7 @@ class DisciplinaRepositoryTest {
     @Test
     fun `buscarPorId returns disciplina`() = runTest {
         coEvery { api.buscarPorId("uuid") } returns mockDisciplina
-        coEvery { disciplinaDao.buscarPorId("uuid") } returns null
+        coEvery { disciplinaDao.buscarComHorarios("uuid") } returns null
 
         val result = repository.buscarPorId("uuid")
 
