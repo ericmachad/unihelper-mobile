@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -114,8 +115,8 @@ class AuthViewModelTest {
 
         val state = viewModel.uiState.value
         assertFalse(state.isSuccess)
-        assertTrue(state.emailNaoConfirmado)
-        assertEquals("joao@utfpr.edu.br", state.emailParaReenviar)
+        assertNotNull(state.pendingConfirmationEmail)
+        assertEquals("joao@utfpr.edu.br", state.pendingConfirmationEmail)
     }
 
     @Test
